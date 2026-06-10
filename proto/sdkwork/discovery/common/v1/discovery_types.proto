@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package sdkwork.discovery.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message ResponseMetadata {
+  string request_id = 1;
+  string trace_id = 2;
+  google.protobuf.Timestamp server_time = 3;
+  uint64 revision = 4;
+}
+
+message ServiceInstance {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  string instance_id = 4;
+  string endpoint = 5;
+  string protocol = 6;
+  string version = 7;
+  string region = 8;
+  string zone = 9;
+  uint32 weight = 10;
+  uint32 priority = 11;
+  InstanceStatus status = 12;
+  map<string, string> metadata = 13;
+  string lease_id = 14;
+  google.protobuf.Timestamp expires_at = 15;
+  uint64 revision = 16;
+}
+
+message ServiceSummary {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  uint64 active_instance_count = 4;
+  uint64 latest_revision = 5;
+}
+
+enum InstanceStatus {
+  INSTANCE_STATUS_UNSPECIFIED = 0;
+  INSTANCE_STATUS_SERVING = 1;
+  INSTANCE_STATUS_DEGRADED = 2;
+  INSTANCE_STATUS_NOT_SERVING = 3;
+}
+
+message ConfigValue {
+  string key = 1;
+  string value = 2;
+  ConfigFormat format = 3;
+  string source_release_id = 4;
+  uint32 source_specificity = 5;
+  uint64 source_revision = 6;
+}
+
+enum ConfigFormat {
+  CONFIG_FORMAT_UNSPECIFIED = 0;
+  CONFIG_FORMAT_TEXT = 1;
+  CONFIG_FORMAT_JSON = 2;
+  CONFIG_FORMAT_TOML = 3;
+}
+
+enum ConfigScopeType {
+  CONFIG_SCOPE_TYPE_UNSPECIFIED = 0;
+  CONFIG_SCOPE_TYPE_NAMESPACE = 1;
+  CONFIG_SCOPE_TYPE_APPLICATION = 2;
+  CONFIG_SCOPE_TYPE_SERVICE = 3;
+}
+
+message ConfigRelease {
+  string release_id = 1;
+  string draft_id = 2;
+  string namespace = 3;
+  string environment = 4;
+  string group = 5;
+  string key = 6;
+  ConfigFormat format = 7;
+  string value = 8;
+  ConfigScopeType scope_type = 9;
+  string application = 10;
+  string service_name = 11;
+  string content_hash = 12;
+  string published_by = 13;
+  google.protobuf.Timestamp published_at = 14;
+  uint64 revision = 15;
+}

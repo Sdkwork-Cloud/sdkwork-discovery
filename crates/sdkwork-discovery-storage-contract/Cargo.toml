@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-discovery-storage-contract"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+sdkwork-discovery-contract.workspace = true

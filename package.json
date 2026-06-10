@@ -1,0 +1,13 @@
+{
+  "name": "sdkwork-discovery-workspace",
+  "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "test": "cargo test --workspace",
+    "fmt:rust": "cargo fmt --all",
+    "fmt:rust:check": "cargo fmt --all -- --check",
+    "verify": "cargo fmt --all -- --check && cargo test --workspace"
+  }
+}

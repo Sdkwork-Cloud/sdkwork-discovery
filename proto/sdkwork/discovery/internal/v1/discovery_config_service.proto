@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package sdkwork.discovery.internal.v1;
+
+import "sdkwork/discovery/common/v1/discovery_types.proto";
+
+service DiscoveryConfigService {
+  rpc RetrieveEffectiveConfig(RetrieveEffectiveConfigRequest) returns (RetrieveEffectiveConfigResponse);
+  rpc WatchConfig(WatchConfigRequest) returns (stream WatchConfigResponse);
+}
+
+message RetrieveEffectiveConfigRequest {
+  string namespace = 1;
+  string environment = 2;
+  string application = 3;
+  string service_name = 4;
+  string group = 5;
+}
+
+message RetrieveEffectiveConfigResponse {
+  repeated sdkwork.discovery.common.v1.ConfigValue values = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}
+
+message WatchConfigRequest {
+  string namespace = 1;
+  string environment = 2;
+  string application = 3;
+  string service_name = 4;
+  string group = 5;
+  uint64 from_revision = 6;
+}
+
+message WatchConfigResponse {
+  string event_type = 1;
+  string release_id = 2;
+  string group = 3;
+  string key = 4;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 5;
+}

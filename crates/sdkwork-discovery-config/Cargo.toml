@@ -1,0 +1,10 @@
+[package]
+name = "sdkwork-discovery-config"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-discovery-contract.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toml.workspace = true

@@ -1,0 +1,26 @@
+[package]
+name = "sdkwork-discovery-rpc"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-discovery-contract.workspace = true
+sdkwork-discovery-core.workspace = true
+sdkwork-discovery-rpc-proto.workspace = true
+sdkwork-discovery-storage-contract.workspace = true
+base64.workspace = true
+hmac.workspace = true
+prost-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tokio = { workspace = true, features = ["sync", "time"] }
+tokio-stream.workspace = true
+tonic.workspace = true
+tonic-health.workspace = true
+tonic-reflection.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+async-trait.workspace = true
+sdkwork-discovery-storage-memory.workspace = true

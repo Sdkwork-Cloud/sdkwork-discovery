@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 3,
+  "kind": "sdkwork.app",
+  "app": {
+    "key": "sdkwork-discovery",
+    "name": "SDKWork Discovery",
+    "displayName": "SDKWork Discovery",
+    "description": "SDKWork service discovery and runtime configuration control plane.",
+    "vendor": "SDKWork",
+    "officialWebsiteUrl": "https://sdkwork.com/apps/sdkwork-discovery",
+    "supportUrl": "https://sdkwork.com/support",
+    "privacyPolicyUrl": "https://sdkwork.com/privacy",
+    "termsOfServiceUrl": "https://sdkwork.com/terms",
+    "iconUrl": "https://cdn.sdkwork.com/apps/sdkwork-discovery/assets/icon-1024.png",
+    "appType": "APP_SERVICE",
+    "versionSource": "Cargo.toml",
+    "identifiers": {
+      "packageName": null,
+      "bundleId": null,
+      "desktopAppId": null,
+      "containerImage": "registry.sdkwork.com/apps/sdkwork-discovery"
+    }
+  },
+  "backend": {
+    "profileKey": "backend-root-admin",
+    "ownerMode": "tenant",
+    "grantMode": "current",
+    "platform": "WEB",
+    "appId": null,
+    "tenantId": "20001",
+    "organizationId": null
+  },
+  "runtime": {
+    "family": "server",
+    "framework": "rust-tonic",
+    "runtimes": [
+      "SERVER",
+      "CONTAINER"
+    ],
+    "deliveryModes": [
+      "CONTAINER_IMAGE",
+      "DIRECT_DOWNLOAD"
+    ],
+    "defaultPlatform": "SERVER",
+    "defaultArchitecture": "x64"
+  },
+  "publish": {
+    "status": "DRAFT",
+    "platforms": [
+      "SERVER",
+      "CONTAINER"
+    ],
+    "installPlatforms": [
+      "SERVER",
+      "CONTAINER"
+    ],
+    "defaultPackageId": "linux-x64-server-tar-gz",
+    "storeUrl": "https://sdkwork.com/apps/sdkwork-discovery",
+    "stores": [],
+    "config": {
+      "workspaceRoot": ".",
+      "framework": "rust-tonic",
+      "managedBy": "sdkwork-discovery"
+    }
+  },
+  "environments": {
+    "development": {
+      "accessUrl": "grpc://127.0.0.1:19090",
+      "deployUrl": "grpc://127.0.0.1:19090",
+      "deployEnv": "dev"
+    },
+    "test": {
+      "accessUrl": "grpc://127.0.0.1:19090",
+      "deployUrl": "grpc://127.0.0.1:19090",
+      "deployEnv": "test"
+    },
+    "production": {
+      "accessUrl": "https://discovery.sdkwork.com",
+      "deployUrl": "https://discovery.sdkwork.com",
+      "deployEnv": "production"
+    }
+  }
+}

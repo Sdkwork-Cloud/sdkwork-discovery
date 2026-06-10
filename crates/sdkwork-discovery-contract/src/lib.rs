@@ -1,0 +1,41 @@
+//! SDKWork Discovery domain contract crate.
+
+mod context;
+mod error;
+mod registry;
+mod rpc_contract;
+mod runtime_config;
+
+pub use context::{CallerContext, ConfigPermission, RegistryPermission};
+pub use error::{DiscoveryError, DiscoveryResult};
+pub use registry::ConfigDraft;
+pub use registry::ConfigFormat;
+pub use registry::ConfigRelease;
+pub use registry::ConfigScope;
+pub use registry::CreateConfigDraftCommand;
+pub use registry::DeregisterInstanceResult;
+pub use registry::DiscoverInstancesQuery;
+pub use registry::DiscoverInstancesResult;
+pub use registry::DiscoveryEvent;
+pub use registry::DiscoveryEventKind;
+pub use registry::EffectiveConfig;
+pub use registry::EffectiveConfigValue;
+pub use registry::IdempotencyContext;
+pub use registry::InstanceStatus;
+pub use registry::ListServicesQuery;
+pub use registry::ListServicesResult;
+pub use registry::PublishConfigCommand;
+pub use registry::RegisterInstanceCommand;
+pub use registry::RegisterInstanceResult;
+pub use registry::RenewLeaseCommand;
+pub use registry::RenewLeaseResult;
+pub use registry::ReportInstanceStatusCommand;
+pub use registry::ReportInstanceStatusResult;
+pub use registry::RetrieveEffectiveConfigQuery;
+pub use registry::RetrieveInstanceQuery;
+pub use registry::RollbackConfigCommand;
+pub use registry::ServiceInstance;
+pub use registry::ServiceSummary;
+pub use registry::WatchEventsQuery;
+pub use rpc_contract::RpcContractInventory;
+pub use runtime_config::{RuntimeDeploymentMode, RuntimeEnvironment, RuntimeTarget};

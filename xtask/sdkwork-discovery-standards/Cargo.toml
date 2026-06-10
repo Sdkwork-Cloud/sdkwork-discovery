@@ -1,0 +1,8 @@
+[package]
+name = "sdkwork-discovery-standards"
+edition.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+toml.workspace = true

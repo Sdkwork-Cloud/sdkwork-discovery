@@ -1,0 +1,16 @@
+[package]
+name = "sdkwork-discovery-storage-sqlite"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+sdkwork-discovery-storage-contract.workspace = true
+sdkwork-discovery-contract.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

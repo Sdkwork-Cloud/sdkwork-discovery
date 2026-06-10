@@ -1,0 +1,14 @@
+[package]
+name = "sdkwork-discovery-core"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+sdkwork-discovery-contract.workspace = true
+sdkwork-discovery-storage-contract.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+sdkwork-discovery-storage-memory.workspace = true
+tokio.workspace = true

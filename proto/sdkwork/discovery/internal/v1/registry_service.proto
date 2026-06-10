@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package sdkwork.discovery.internal.v1;
+
+import "google/protobuf/timestamp.proto";
+import "sdkwork/discovery/common/v1/discovery_types.proto";
+
+service RegistryService {
+  rpc RegisterInstance(RegisterInstanceRequest) returns (RegisterInstanceResponse);
+  rpc RenewLease(RenewLeaseRequest) returns (RenewLeaseResponse);
+  rpc DeregisterInstance(DeregisterInstanceRequest) returns (DeregisterInstanceResponse);
+  rpc ReportInstanceStatus(ReportInstanceStatusRequest) returns (ReportInstanceStatusResponse);
+  rpc RetrieveInstance(RetrieveInstanceRequest) returns (RetrieveInstanceResponse);
+  rpc DiscoverInstances(DiscoverInstancesRequest) returns (DiscoverInstancesResponse);
+}
+
+service DiscoveryWatchService {
+  rpc WatchService(WatchServiceRequest) returns (stream WatchServiceResponse);
+}
+
+message RegisterInstanceRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  string instance_id = 4;
+  string endpoint = 5;
+  string protocol = 6;
+  string version = 7;
+  string region = 8;
+  string zone = 9;
+  uint32 weight = 10;
+  uint32 priority = 11;
+  sdkwork.discovery.common.v1.InstanceStatus status = 12;
+  map<string, string> metadata = 13;
+  uint64 lease_ttl_seconds = 14;
+}
+
+message RegisterInstanceResponse {
+  string lease_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
+}
+
+message RenewLeaseRequest {
+  string lease_id = 1;
+  uint64 lease_ttl_seconds = 2;
+}
+
+message RenewLeaseResponse {
+  string lease_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
+}
+
+message DeregisterInstanceRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  string instance_id = 4;
+}
+
+message DeregisterInstanceResponse {
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 1;
+}
+
+message ReportInstanceStatusRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  string instance_id = 4;
+  sdkwork.discovery.common.v1.InstanceStatus status = 5;
+}
+
+message ReportInstanceStatusResponse {
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 1;
+}
+
+message RetrieveInstanceRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  string instance_id = 4;
+}
+
+message RetrieveInstanceResponse {
+  sdkwork.discovery.common.v1.ServiceInstance instance = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}
+
+message DiscoverInstancesRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  bool healthy_only = 4;
+  string protocol = 5;
+}
+
+message DiscoverInstancesResponse {
+  repeated sdkwork.discovery.common.v1.ServiceInstance instances = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}
+
+message WatchServiceRequest {
+  string namespace = 1;
+  string environment = 2;
+  string service_name = 3;
+  uint64 from_revision = 4;
+}
+
+message WatchServiceResponse {
+  string event_type = 1;
+  sdkwork.discovery.common.v1.ServiceInstance instance = 2;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
+}

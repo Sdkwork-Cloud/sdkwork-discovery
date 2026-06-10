@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package sdkwork.discovery.backend.v3;
+
+import "sdkwork/discovery/common/v1/discovery_types.proto";
+
+service DiscoveryAdminService {
+  rpc CreateConfigDraft(CreateConfigDraftRequest) returns (CreateConfigDraftResponse);
+  rpc PublishConfig(PublishConfigRequest) returns (PublishConfigResponse);
+  rpc RollbackConfig(RollbackConfigRequest) returns (RollbackConfigResponse);
+  rpc ListServices(ListServicesRequest) returns (ListServicesResponse);
+}
+
+message CreateConfigDraftRequest {
+  string namespace = 1;
+  string environment = 2;
+  string group = 3;
+  string key = 4;
+  sdkwork.discovery.common.v1.ConfigFormat format = 5;
+  string value = 6;
+  sdkwork.discovery.common.v1.ConfigScopeType scope_type = 7;
+  string application = 8;
+  string service_name = 9;
+}
+
+message CreateConfigDraftResponse {
+  string draft_id = 1;
+  string content_hash = 2;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
+}
+
+message PublishConfigRequest {
+  string draft_id = 1;
+}
+
+message PublishConfigResponse {
+  string release_id = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}
+
+message RollbackConfigRequest {
+  reserved 2;
+  reserved "rolled_back_by";
+
+  string source_release_id = 1;
+}
+
+message RollbackConfigResponse {
+  sdkwork.discovery.common.v1.ConfigRelease release = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}
+
+message ListServicesRequest {
+  string namespace = 1;
+  string environment = 2;
+}
+
+message ListServicesResponse {
+  repeated sdkwork.discovery.common.v1.ServiceSummary services = 1;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+}

@@ -1,0 +1,15 @@
+/target/
+**/target/
+/target-codex-test/
+/.env
+/.env.*
+!/.env.example
+!/.env.postgres.example
+*.local.toml
+*.secret
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+*.db
+*.log
