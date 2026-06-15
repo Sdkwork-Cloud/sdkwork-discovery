@@ -1500,11 +1500,23 @@ dependencies = [
  "async-trait",
  "sdkwork-discovery-contract",
  "sdkwork-discovery-storage-contract",
+ "sdkwork-pool-config",
  "serde_json",
  "sha2",
  "sqlx",
  "tokio",
  "uuid",
+]
+
+[[package]]
+name = "sdkwork-pool-config"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "toml",
+ "tracing",
 ]
 
 [[package]]

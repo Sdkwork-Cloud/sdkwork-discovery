@@ -9,6 +9,7 @@
     "root": "sdkwork-discovery",
     "domain": "platform",
     "capability": "discovery",
+    "surface": "internal",
     "languages": [
       "rust",
       "typescript"
@@ -35,6 +36,11 @@
       "file": "NAMING_SPEC.md",
       "path": "../sdkwork-specs/NAMING_SPEC.md",
       "purpose": "Canonical SDKWork naming rules."
+    },
+    {
+      "file": "DOMAIN_SPEC.md",
+      "path": "../sdkwork-specs/DOMAIN_SPEC.md",
+      "purpose": "Canonical domain names and bounded contexts."
     },
     {
       "file": "RUST_CODE_SPEC.md",
@@ -107,6 +113,9 @@
     ],
     "routeManifest": null,
     "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
     "events": [
       "discovery.registry.changed",
       "discovery.config.changed"
@@ -197,9 +206,7 @@
       "SDKWORK_DISCOVERY_RPC_REFLECTION_ENABLED",
       "SDKWORK_DISCOVERY_RPC_HEALTH_ENABLED",
       "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS"
-    ],
-    "dependencyApiExports": [],
-    "dependencyApiSurfaces": []
+    ]
   },
   "verification": {
     "commands": [
@@ -208,5 +215,14 @@
       "pnpm.cmd verify",
       "cargo clippy --workspace --all-targets -- -D warnings"
     ]
-  }
+  },
+  "migrationNotes": [
+    {
+      "issue": "services/sdkwork-discovery-product uses forbidden 'product' suffix per NAMING_SPEC.md §4.3",
+      "target": "services/sdkwork-discovery-service-host",
+      "status": "planned",
+      "breaking": true,
+      "description": "Rename to responsibility-specific name following RUST_CODE_SPEC.md naming rules"
+    }
+  ]
 }

@@ -9,7 +9,7 @@ members = [
     "crates/sdkwork-discovery-core",
     "crates/sdkwork-discovery-rpc-proto",
     "crates/sdkwork-discovery-rpc",
-    "services/sdkwork-discovery-product",
+    "services/sdkwork-discovery-service-host",
     "xtask/sdkwork-discovery-standards",
 ]
 resolver = "2"
