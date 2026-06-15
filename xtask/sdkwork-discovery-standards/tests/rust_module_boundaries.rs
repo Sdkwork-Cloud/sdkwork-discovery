@@ -37,12 +37,13 @@ fn runtime_storage_docs_describe_postgres_adapter_without_stale_fail_fast_claims
 }
 
 #[test]
-fn grpc_transport_crates_and_product_binding_are_present() {
+fn grpc_transport_crates_and_service_host_binding_are_present() {
     let workspace_root = workspace_root();
     let cargo_manifest = fs::read_to_string(workspace_root.join("Cargo.toml")).unwrap();
-    let product_main =
-        fs::read_to_string(workspace_root.join("services/sdkwork-discovery-product/src/main.rs"))
-            .unwrap();
+    let service_host_main = fs::read_to_string(
+        workspace_root.join("services/sdkwork-discovery-service-host/src/main.rs"),
+    )
+    .unwrap();
 
     assert!(cargo_manifest.contains("\"crates/sdkwork-discovery-rpc-proto\""));
     assert!(cargo_manifest.contains("\"crates/sdkwork-discovery-rpc\""));
@@ -52,7 +53,7 @@ fn grpc_transport_crates_and_product_binding_are_present() {
     assert!(workspace_root
         .join("crates/sdkwork-discovery-rpc/src/server.rs")
         .exists());
-    assert!(!product_main.contains("gRPC transport is not started in this build slice"));
+    assert!(!service_host_main.contains("gRPC transport is not started in this build slice"));
 }
 
 #[test]

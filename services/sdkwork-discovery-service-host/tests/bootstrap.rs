@@ -1,4 +1,4 @@
-use sdkwork_discovery_product::{DiscoveryProductBootstrap, DiscoveryProductRuntime};
+use sdkwork_discovery_service_host::{DiscoveryServiceHostBootstrap, DiscoveryServiceHostRuntime};
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::discovery_admin_service_client::DiscoveryAdminServiceClient;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::{
     CreateConfigDraftRequest, PublishConfigRequest,
@@ -39,14 +39,14 @@ fn parse_env_example(input: &str) -> BTreeMap<String, String> {
 }
 
 #[test]
-fn product_bootstrap_builds_control_plane_from_runtime_config() {
+fn service_host_bootstrap_builds_control_plane_from_runtime_config() {
     let mut env = BTreeMap::new();
     env.insert(
         "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
         "memory".to_string(),
     );
 
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -57,10 +57,10 @@ fn product_bootstrap_builds_control_plane_from_runtime_config() {
 }
 
 #[test]
-fn product_bootstrap_accepts_checked_in_postgres_env_example() {
+fn service_host_bootstrap_accepts_checked_in_postgres_env_example() {
     let env = parse_env_example(include_str!("../../../.env.postgres.example"));
 
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -81,13 +81,13 @@ fn product_bootstrap_accepts_checked_in_postgres_env_example() {
 }
 
 #[test]
-fn product_bootstrap_maps_default_deadline_into_rpc_server_config() {
+fn service_host_bootstrap_maps_default_deadline_into_rpc_server_config() {
     let env = BTreeMap::from([(
         "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS".to_string(),
         "2750".to_string(),
     )]);
 
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -99,7 +99,7 @@ fn product_bootstrap_maps_default_deadline_into_rpc_server_config() {
 }
 
 #[test]
-fn product_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
+fn service_host_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
     let env = BTreeMap::from([
         (
             "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
@@ -119,7 +119,7 @@ fn product_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
         ),
     ]);
 
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -138,7 +138,7 @@ fn product_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
 }
 
 #[test]
-fn product_runtime_exposes_rpc_server_configs_for_preflight() {
+fn service_host_runtime_exposes_rpc_server_configs_for_preflight() {
     let env = BTreeMap::from([
         (
             "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
@@ -153,7 +153,7 @@ fn product_runtime_exposes_rpc_server_configs_for_preflight() {
             "19193".to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -167,7 +167,7 @@ fn product_runtime_exposes_rpc_server_configs_for_preflight() {
 }
 
 #[test]
-fn product_bootstrap_maps_watch_runtime_governance_into_rpc_server_config() {
+fn service_host_bootstrap_maps_watch_runtime_governance_into_rpc_server_config() {
     let env = BTreeMap::from([
         (
             "SDKWORK_DISCOVERY_WATCH_ENABLED".to_string(),
@@ -195,7 +195,7 @@ fn product_bootstrap_maps_watch_runtime_governance_into_rpc_server_config() {
         ),
     ]);
 
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -212,7 +212,7 @@ fn product_bootstrap_maps_watch_runtime_governance_into_rpc_server_config() {
 }
 
 #[test]
-fn product_bootstrap_accepts_postgres_storage_provider_without_exposing_secrets() {
+fn service_host_bootstrap_accepts_postgres_storage_provider_without_exposing_secrets() {
     let input = include_str!("../../../etc/discovery.example.toml").replace(
         r#"[storage]
 provider = "memory""#,
@@ -231,7 +231,7 @@ max_connections = 16"#,
     );
 
     let bootstrap =
-        DiscoveryProductBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
+        DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
     let summary = bootstrap.storage_safe_summary();
 
     assert_eq!(bootstrap.storage_provider_name(), "postgres");
@@ -242,7 +242,7 @@ max_connections = 16"#,
 }
 
 #[test]
-fn product_bootstrap_accepts_sqlite_storage_provider_with_safe_summary() {
+fn service_host_bootstrap_accepts_sqlite_storage_provider_with_safe_summary() {
     let input = include_str!("../../../etc/discovery.example.toml").replace(
         r#"[storage]
 provider = "memory""#,
@@ -256,7 +256,7 @@ max_connections = 1"#,
     );
 
     let bootstrap =
-        DiscoveryProductBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
+        DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
     let summary = bootstrap.storage_safe_summary();
 
     assert_eq!(bootstrap.storage_provider_name(), "sqlite");
@@ -279,13 +279,13 @@ file = ":memory:"
 max_connections = 1"#,
     );
     let bootstrap =
-        DiscoveryProductBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
+        DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
 
     bootstrap.initialize_storage().await.unwrap();
 }
 
 #[test]
-fn product_bootstrap_keeps_initial_schema_application_explicit() {
+fn service_host_bootstrap_keeps_initial_schema_application_explicit() {
     let input = include_str!("../../../etc/discovery.example.toml").replace(
         r#"[storage]
 provider = "memory""#,
@@ -305,14 +305,14 @@ max_connections = 16"#,
     );
 
     let bootstrap =
-        DiscoveryProductBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
+        DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()).unwrap();
 
     assert!(bootstrap.config().storage.apply_initial_schema);
 }
 
 #[tokio::test]
 async fn memory_storage_initialization_is_noop() {
-    let bootstrap = DiscoveryProductBootstrap::from_toml_str_with_env(
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &BTreeMap::new(),
     )
@@ -330,7 +330,7 @@ async fn memory_runtime_can_start_and_stop_grpc_server_on_ephemeral_port() {
         ),
         ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -382,7 +382,7 @@ async fn memory_runtime_accepts_verified_service_token_when_unsigned_context_is_
             (200_u64 * 365 * 24 * 60 * 60).to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -431,7 +431,7 @@ async fn memory_runtime_starts_separate_internal_and_admin_servers_when_ports_di
             admin_port.to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -472,7 +472,7 @@ async fn memory_runtime_enforces_configured_registry_lease_ttl_bounds_over_grpc(
             "300".to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -523,7 +523,7 @@ async fn memory_runtime_uses_configured_expiry_scan_interval_over_grpc_watch() {
             "20".to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -590,7 +590,7 @@ async fn memory_runtime_applies_config_registry_read_policy_over_grpc() {
             "false".to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -644,7 +644,7 @@ async fn memory_runtime_rejects_config_reads_when_config_registry_disabled_over_
             "false".to_string(),
         ),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -688,14 +688,14 @@ async fn sqlite_backed_config_watch_streams_updates_published_by_another_runtime
     let publish_env = sqlite_runtime_env(&database_file, publish_port);
     let config = sqlite_runtime_config_toml();
     let watch_runtime =
-        DiscoveryProductRuntime::from_toml_str_with_env(&config, &watch_env).unwrap();
+        DiscoveryServiceHostRuntime::from_toml_str_with_env(&config, &watch_env).unwrap();
     watch_runtime
         .bootstrap()
         .initialize_storage()
         .await
         .unwrap();
     let publish_runtime =
-        DiscoveryProductRuntime::from_toml_str_with_env(&config, &publish_env).unwrap();
+        DiscoveryServiceHostRuntime::from_toml_str_with_env(&config, &publish_env).unwrap();
 
     let watch_server = watch_runtime.serve_grpc().await.unwrap();
     let publish_server = publish_runtime.serve_grpc().await.unwrap();
@@ -793,14 +793,14 @@ async fn sqlite_backed_service_watch_streams_instances_registered_by_another_run
     let register_env = sqlite_runtime_env(&database_file, register_port);
     let config = sqlite_runtime_config_toml();
     let watch_runtime =
-        DiscoveryProductRuntime::from_toml_str_with_env(&config, &watch_env).unwrap();
+        DiscoveryServiceHostRuntime::from_toml_str_with_env(&config, &watch_env).unwrap();
     watch_runtime
         .bootstrap()
         .initialize_storage()
         .await
         .unwrap();
     let register_runtime =
-        DiscoveryProductRuntime::from_toml_str_with_env(&config, &register_env).unwrap();
+        DiscoveryServiceHostRuntime::from_toml_str_with_env(&config, &register_env).unwrap();
 
     let watch_server = watch_runtime.serve_grpc().await.unwrap();
     let register_server = register_runtime.serve_grpc().await.unwrap();
@@ -876,7 +876,7 @@ async fn runtime_rejects_missing_tls_certificate_files_before_binding_grpc() {
         ),
         ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -924,7 +924,7 @@ async fn runtime_rejects_missing_mtls_client_ca_file_before_binding_grpc() {
         ),
         ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
     ]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -958,7 +958,7 @@ fn runtime_env_collection_separates_config_file_from_safe_overlay() {
         ("UNRELATED".to_string(), "ignored".to_string()),
     ]);
 
-    let options = DiscoveryProductRuntime::options_from_env(&env).unwrap();
+    let options = DiscoveryServiceHostRuntime::options_from_env(&env).unwrap();
 
     assert_eq!(
         options.config_file.as_deref(),
@@ -983,7 +983,7 @@ fn runtime_summary_contains_only_safe_operational_fields() {
         "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
         "19190".to_string(),
     )]);
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )
@@ -1001,7 +1001,7 @@ fn runtime_summary_contains_only_safe_operational_fields() {
 #[test]
 fn runtime_summary_includes_storage_safe_summary_without_secret_material() {
     let env = parse_env_example(include_str!("../../../.env.postgres.example"));
-    let runtime = DiscoveryProductRuntime::from_toml_str_with_env(
+    let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
     )

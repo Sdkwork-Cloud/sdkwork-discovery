@@ -12,7 +12,15 @@ sdkwork-discovery-storage-contract.workspace = true
 sdkwork-discovery-storage-memory.workspace = true
 sdkwork-discovery-storage-postgres.workspace = true
 sdkwork-discovery-storage-sqlite.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus = { version = "0.16", optional = true }
 tokio = { workspace = true, features = ["signal"] }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[features]
+default = []
+prometheus = ["metrics-exporter-prometheus"]
 
 [dev-dependencies]
 sdkwork-discovery-rpc-proto.workspace = true

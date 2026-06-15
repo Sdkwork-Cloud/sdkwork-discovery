@@ -26,7 +26,7 @@ pnpm.cmd verify
 The product crate has a runnable binary that loads runtime configuration, applies the safe `SDKWORK_DISCOVERY_*` environment overlay, validates policy, initializes configured storage, starts the tonic gRPC server, and prints a redacted operational summary:
 
 ```bash
-cargo run -p sdkwork-discovery-product --offline
+cargo run -p sdkwork-discovery-service-host --offline
 ```
 
 Use `SDKWORK_DISCOVERY_CONFIG_FILE` to point at a host-local TOML config file. This key selects the file only; it is not forwarded into the runtime config overlay.

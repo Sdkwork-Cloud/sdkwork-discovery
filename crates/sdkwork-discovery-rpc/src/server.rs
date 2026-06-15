@@ -13,6 +13,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{oneshot, Semaphore};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
+use tracing::{error, info, warn};
 
 use crate::services::DiscoveryWatchServiceConfig;
 use crate::{
@@ -139,10 +140,17 @@ impl DiscoveryRpcServerHandle {
         validate_server_config(&config)?;
         validate_transport_config(&config)?;
 
+        let bind_addr = config.bind_addr.clone();
         let incoming = TcpListenerStream::new(listener);
         let (shutdown_sender, shutdown_receiver) = oneshot::channel();
         let join_handle = tokio::spawn(async move {
-            serve_with_incoming(config, services, incoming, shutdown_receiver).await
+            info!(bind_addr = %bind_addr, "starting gRPC server");
+            let result = serve_with_incoming(config, services, incoming, shutdown_receiver).await;
+            match &result {
+                Ok(_) => info!(bind_addr = %bind_addr, "gRPC server stopped"),
+                Err(error) => error!(bind_addr = %bind_addr, error = %error, "gRPC server failed"),
+            }
+            result
         });
 
         Ok(Self {
@@ -230,6 +238,7 @@ impl DiscoveryRpcServerHandle {
     }
 
     pub async fn shutdown(mut self) {
+        info!("shutting down gRPC server");
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -237,9 +246,11 @@ impl DiscoveryRpcServerHandle {
             .await
             .is_err()
         {
+            warn!("gRPC server shutdown timed out, aborting");
             self.join_handle.abort();
             let _ = self.join_handle.await;
         }
+        info!("gRPC server shutdown complete");
     }
 }
 

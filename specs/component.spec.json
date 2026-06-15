@@ -109,7 +109,7 @@
       "crates/sdkwork-discovery-core"
     ],
     "runtimeEntrypoints": [
-      "services/sdkwork-discovery-product"
+      "services/sdkwork-discovery-service-host"
     ],
     "routeManifest": null,
     "sdkClients": [],
@@ -218,11 +218,20 @@
   },
   "migrationNotes": [
     {
-      "issue": "services/sdkwork-discovery-product uses forbidden 'product' suffix per NAMING_SPEC.md §4.3",
+      "issue": "services/sdkwork-discovery-product used forbidden 'product' suffix per NAMING_SPEC.md §4.3",
       "target": "services/sdkwork-discovery-service-host",
-      "status": "planned",
+      "status": "completed",
+      "completedAt": "2026-06-15",
       "breaking": true,
-      "description": "Rename to responsibility-specific name following RUST_CODE_SPEC.md naming rules"
+      "description": "Renamed to responsibility-specific name following RUST_CODE_SPEC.md naming rules"
+    },
+    {
+      "issue": "sdkwork-discovery-storage-sqlite referenced non-existent sdkwork-pool path",
+      "target": "sdkwork-database",
+      "status": "completed",
+      "completedAt": "2026-06-15",
+      "breaking": false,
+      "description": "Updated dependency path from sdkwork-pool to sdkwork-database"
     }
   ]
 }

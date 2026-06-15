@@ -13,6 +13,20 @@ pub enum DiscoveryError {
     PolicyViolation(String),
 }
 
+impl DiscoveryError {
+    pub fn kind_string(&self) -> &'static str {
+        match self {
+            Self::Unauthenticated(_) => "unauthenticated",
+            Self::InvalidConfig(_) => "invalid_config",
+            Self::InvalidArgument(_) => "invalid_argument",
+            Self::NotFound(_) => "not_found",
+            Self::AlreadyPublished(_) => "already_published",
+            Self::PermissionDenied(_) => "permission_denied",
+            Self::PolicyViolation(_) => "policy_violation",
+        }
+    }
+}
+
 impl Display for DiscoveryError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

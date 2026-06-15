@@ -5,5 +5,5 @@ mod runtime;
 
 pub use bootstrap::DiscoveryServiceHostBootstrap;
 pub use bootstrap::DiscoveryServiceHostGrpcServer;
-pub use runtime::DiscoveryServiceHostRuntime;
 pub use runtime::DiscoveryRuntimeOptions;
+pub use runtime::DiscoveryServiceHostRuntime;
