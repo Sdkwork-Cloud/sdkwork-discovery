@@ -1,0 +1,5 @@
+# Local-only state
+local/
+tmp/
+cache/
+secrets/

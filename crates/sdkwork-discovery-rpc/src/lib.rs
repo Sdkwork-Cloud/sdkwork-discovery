@@ -17,7 +17,9 @@ pub use error::map_discovery_error_to_status;
 pub use manifest::discovery_rpc_service_manifest;
 pub use manifest::DiscoveryRpcMethod;
 pub use manifest::DiscoveryRpcServiceManifest;
-pub use metrics::{decrement_active_streams, describe_metrics, increment_active_streams, RpcMetrics};
+pub use metrics::{
+    decrement_active_streams, describe_metrics, increment_active_streams, RpcMetrics,
+};
 pub use server::DiscoveryRpcServerConfig;
 pub use server::DiscoveryRpcServerHandle;
 pub use server::DiscoveryRpcServices;
