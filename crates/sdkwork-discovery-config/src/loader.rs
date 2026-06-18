@@ -7,9 +7,10 @@ use serde::Deserialize;
 
 use crate::env_overlay::{apply_env_overlay, validate_env_keys};
 use crate::model::{
-    ConfigRegistryConfig, DiscoveryRuntimeConfig, RegistryConfig, RuntimeConfig, SecurityAuthMode,
-    SecurityConfig, ServerConfig, ServiceTokenConfig, StorageConfig, StorageCredentialSource,
-    StorageFileConfig, StorageProvider, StorageRole, StorageTransportConfig, WatchConfig,
+    ConfigRegistryConfig, DiscoveryRuntimeConfig, RegistryConfig, ResilienceConfig, RuntimeConfig,
+    SecurityAuthMode, SecurityConfig, ServerConfig, ServiceTokenConfig, StorageConfig,
+    StorageCredentialSource, StorageFileConfig, StorageProvider, StorageRole,
+    StorageTransportConfig, WatchConfig,
 };
 
 impl DiscoveryRuntimeConfig {
@@ -46,6 +47,8 @@ struct RawDiscoveryRuntimeConfig {
     registry: RegistryConfig,
     config_registry: ConfigRegistryConfig,
     watch: WatchConfig,
+    #[serde(default)]
+    resilience: ResilienceConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,6 +173,7 @@ impl RawDiscoveryRuntimeConfig {
             registry: self.registry,
             config_registry: self.config_registry,
             watch: self.watch,
+            resilience: self.resilience,
         })
     }
 }

@@ -137,3 +137,24 @@ event_buffer_size = 1024
 heartbeat_interval_ms = 15000
 durable_poll_interval_ms = 1000
 durable_replay_batch_size = 1000
+# event_gc_interval_ms = 0 disables background watch event GC.
+# event_gc_retention_count keeps the newest N revisions; event_gc_batch_size bounds each delete pass.
+# event_gc_interval_ms = 60000
+# event_gc_retention_count = 10000
+# event_gc_batch_size = 1000
+
+[resilience]
+# All resilience features are disabled by default. Enable only when the runtime actor
+# needs request throttling, storage circuit breaking, or read-only degradation.
+# [resilience.circuit_breaker]
+# enabled = false
+# failure_threshold = 5
+# recovery_timeout_ms = 30000
+# half_open_max_requests = 3
+# [resilience.rate_limit]
+# enabled = false
+# requests_per_second = 1000
+# burst_capacity = 1000
+# [resilience.degradation]
+# read_only_on_storage_failure = false
+# stale_read_max_age_ms = 60000

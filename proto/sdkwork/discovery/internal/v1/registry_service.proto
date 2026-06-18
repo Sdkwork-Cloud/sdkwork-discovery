@@ -7,6 +7,7 @@ import "sdkwork/discovery/common/v1/discovery_types.proto";
 
 service RegistryService {
   rpc RegisterInstance(RegisterInstanceRequest) returns (RegisterInstanceResponse);
+  rpc BatchRegisterInstances(BatchRegisterInstancesRequest) returns (BatchRegisterInstancesResponse);
   rpc RenewLease(RenewLeaseRequest) returns (RenewLeaseResponse);
   rpc DeregisterInstance(DeregisterInstanceRequest) returns (DeregisterInstanceResponse);
   rpc ReportInstanceStatus(ReportInstanceStatusRequest) returns (ReportInstanceStatusResponse);
@@ -33,11 +34,24 @@ message RegisterInstanceRequest {
   sdkwork.discovery.common.v1.InstanceStatus status = 12;
   map<string, string> metadata = 13;
   uint64 lease_ttl_seconds = 14;
+  optional uint64 expected_revision = 20;
+  bool persistent = 21;
+  optional sdkwork.discovery.common.v1.HealthCheckConfig health_check = 22;
 }
 
 message RegisterInstanceResponse {
   string lease_id = 1;
   google.protobuf.Timestamp expires_at = 2;
+  sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
+}
+
+message BatchRegisterInstancesRequest {
+  repeated RegisterInstanceRequest instances = 1;
+}
+
+message BatchRegisterInstancesResponse {
+  repeated RegisterInstanceResponse results = 1;
+  repeated sdkwork.discovery.common.v1.BatchOperationError errors = 2;
   sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
 }
 
@@ -69,6 +83,7 @@ message ReportInstanceStatusRequest {
   string service_name = 3;
   string instance_id = 4;
   sdkwork.discovery.common.v1.InstanceStatus status = 5;
+  optional uint64 expected_revision = 20;
 }
 
 message ReportInstanceStatusResponse {
@@ -93,6 +108,8 @@ message DiscoverInstancesRequest {
   string service_name = 3;
   bool healthy_only = 4;
   string protocol = 5;
+  repeated sdkwork.discovery.common.v1.LabelFilter label_filters = 20;
+  sdkwork.discovery.common.v1.DiscoverSortBy sort_by = 21;
 }
 
 message DiscoverInstancesResponse {
@@ -108,7 +125,7 @@ message WatchServiceRequest {
 }
 
 message WatchServiceResponse {
-  string event_type = 1;
+  sdkwork.discovery.common.v1.WatchEventType event_type = 1;
   sdkwork.discovery.common.v1.ServiceInstance instance = 2;
   sdkwork.discovery.common.v1.ResponseMetadata metadata = 3;
 }

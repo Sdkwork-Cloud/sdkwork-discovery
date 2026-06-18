@@ -28,6 +28,7 @@ message ServiceInstance {
   string lease_id = 14;
   google.protobuf.Timestamp expires_at = 15;
   uint64 revision = 16;
+  optional HealthCheckConfig health_check = 17;
 }
 
 message ServiceSummary {
@@ -84,4 +85,66 @@ message ConfigRelease {
   string published_by = 13;
   google.protobuf.Timestamp published_at = 14;
   uint64 revision = 15;
+}
+
+message LabelFilter {
+  string key = 1;
+  LabelFilterOp op = 2;
+  string value = 3;
+}
+
+message BatchOperationError {
+  uint32 index = 1;
+  string error_code = 2;
+  string error_message = 3;
+}
+
+enum LabelFilterOp {
+  LABEL_FILTER_OP_UNSPECIFIED = 0;
+  LABEL_FILTER_OP_EQ = 1;
+  LABEL_FILTER_OP_NOT_EQ = 2;
+  LABEL_FILTER_OP_IN = 3;
+  LABEL_FILTER_OP_EXISTS = 4;
+}
+
+enum DiscoverSortBy {
+  DISCOVER_SORT_BY_UNSPECIFIED = 0;
+  DISCOVER_SORT_BY_INSTANCE_ID = 1;
+  DISCOVER_SORT_BY_PRIORITY = 2;
+  DISCOVER_SORT_BY_WEIGHT = 3;
+  DISCOVER_SORT_BY_WEIGHTED_RANDOM = 4;
+}
+
+enum HealthCheckProbeKind {
+  HEALTH_CHECK_PROBE_KIND_UNSPECIFIED = 0;
+  HEALTH_CHECK_PROBE_KIND_TCP = 1;
+  HEALTH_CHECK_PROBE_KIND_HTTP = 2;
+  HEALTH_CHECK_PROBE_KIND_GRPC = 3;
+}
+
+message HealthCheckProbe {
+  HealthCheckProbeKind kind = 1;
+  string http_path = 2;
+  uint32 http_expected_status = 3;
+  string grpc_service_name = 4;
+}
+
+message HealthCheckConfig {
+  HealthCheckProbe probe = 1;
+  uint64 interval_ms = 2;
+  uint64 timeout_ms = 3;
+  uint32 unhealthy_threshold = 4;
+  uint32 healthy_threshold = 5;
+}
+
+enum WatchEventType {
+  WATCH_EVENT_TYPE_UNSPECIFIED = 0;
+  WATCH_EVENT_TYPE_INSTANCE_REGISTERED = 1;
+  WATCH_EVENT_TYPE_INSTANCE_UPDATED = 2;
+  WATCH_EVENT_TYPE_INSTANCE_STATUS_REPORTED = 3;
+  WATCH_EVENT_TYPE_INSTANCE_RENEWED = 4;
+  WATCH_EVENT_TYPE_INSTANCE_DEREGISTERED = 5;
+  WATCH_EVENT_TYPE_CONFIG_PUBLISHED = 6;
+  WATCH_EVENT_TYPE_CONFIG_ROLLED_BACK = 7;
+  WATCH_EVENT_TYPE_HEARTBEAT = 8;
 }

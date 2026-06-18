@@ -4,10 +4,22 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "@sdkwork/app-topology": "file:../sdkwork-app-topology"
+  },
   "scripts": {
+    "discovery:dev": "node scripts/discovery-dev.mjs --hosting self-hosted",
+    "discovery:dev:cloud": "node scripts/discovery-dev.mjs --hosting cloud-hosted",
+    "topology:validate": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json",
+    "topology:matrix": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs print-matrix --root . --spec specs/topology.spec.json --profile all",
+    "test:topology-baggage": "node --test scripts/dev/sdkwork-discovery-topology-baggage.test.mjs",
+    "test:topology-validate": "pnpm run topology:validate",
     "test": "cargo test --workspace",
     "fmt:rust": "cargo fmt --all",
     "fmt:rust:check": "cargo fmt --all -- --check",
-    "verify": "cargo fmt --all -- --check && cargo test --workspace"
+    "clippy": "cargo clippy --workspace --all-targets -- -D warnings",
+    "verify": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && pnpm run test:topology-validate && pnpm run topology:matrix && pnpm run test:topology-baggage && pnpm run verify:sdk-rust && pnpm run verify:sdk-typescript",
+    "verify:sdk-rust": "cargo build --manifest-path sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/Cargo.toml",
+    "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check"
   }
 }

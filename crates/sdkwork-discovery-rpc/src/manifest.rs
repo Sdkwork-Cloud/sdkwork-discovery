@@ -50,7 +50,17 @@ pub fn discovery_rpc_service_manifest() -> DiscoveryRpcServiceManifest {
                 method: "RegisterInstance",
                 operation_id: "discovery.registry.instances.register",
                 auth: "service-identity",
-                idempotency: "natural",
+                idempotency: "optional",
+                streaming: "unary",
+            }),
+            method(MethodSpec {
+                package: "sdkwork.discovery.internal.v1",
+                service: "RegistryService",
+                surface: "internal",
+                method: "BatchRegisterInstances",
+                operation_id: "discovery.registry.instances.batch_register",
+                auth: "service-identity",
+                idempotency: "optional",
                 streaming: "unary",
             }),
             method(MethodSpec {
@@ -60,7 +70,7 @@ pub fn discovery_rpc_service_manifest() -> DiscoveryRpcServiceManifest {
                 method: "RenewLease",
                 operation_id: "discovery.registry.leases.renew",
                 auth: "service-identity",
-                idempotency: "natural",
+                idempotency: "optional",
                 streaming: "unary",
             }),
             method(MethodSpec {
@@ -70,7 +80,7 @@ pub fn discovery_rpc_service_manifest() -> DiscoveryRpcServiceManifest {
                 method: "DeregisterInstance",
                 operation_id: "discovery.registry.instances.deregister",
                 auth: "service-identity",
-                idempotency: "natural",
+                idempotency: "optional",
                 streaming: "unary",
             }),
             method(MethodSpec {
@@ -80,7 +90,7 @@ pub fn discovery_rpc_service_manifest() -> DiscoveryRpcServiceManifest {
                 method: "ReportInstanceStatus",
                 operation_id: "discovery.registry.instances.status.report",
                 auth: "service-identity",
-                idempotency: "natural",
+                idempotency: "optional",
                 streaming: "unary",
             }),
             method(MethodSpec {

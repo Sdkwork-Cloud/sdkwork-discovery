@@ -4,7 +4,9 @@ use sdkwork_discovery_storage_postgres::sql;
 fn registry_sql_uses_atomic_upsert_and_revisioned_events() {
     assert!(sql::REGISTER_INSTANCE.contains("ON CONFLICT"));
     assert!(sql::REGISTER_INSTANCE.contains("uk_discovery_service_instance_identity"));
+    assert!(sql::REGISTER_INSTANCE.contains("health_check_json"));
     assert!(sql::SELECT_EXISTING_INSTANCE_LEASE.contains("expires_at_ms >"));
+    assert!(sql::SELECT_EXISTING_INSTANCE_LEASE.contains("revision"));
     assert!(sql::RENEW_LEASE.contains("expires_at_ms >"));
     assert!(sql::REPORT_INSTANCE_STATUS.contains("expires_at_ms > $7"));
     assert!(sql::DEREGISTER_INSTANCE.contains("expires_at_ms > $6"));

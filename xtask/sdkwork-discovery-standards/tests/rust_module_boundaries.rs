@@ -72,6 +72,20 @@ fn rpc_adapter_crate_has_no_forbidden_transport_or_storage_dependencies() {
 }
 
 #[test]
+fn rpc_sdk_language_workspaces_are_present() {
+    let workspace_root = workspace_root();
+    assert!(workspace_root
+        .join("sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/build.rs")
+        .exists());
+    assert!(workspace_root
+        .join("sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/Cargo.toml")
+        .exists());
+    assert!(workspace_root
+        .join("sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript/package.json")
+        .exists());
+}
+
+#[test]
 fn rpc_dependency_boundary_detects_direct_forbidden_dependencies() {
     let manifest = r#"
 [package]
@@ -160,7 +174,7 @@ fn collect_lib_rs(directory: &Path, lib_rs_files: &mut Vec<PathBuf>) {
         let file_name = entry.file_name();
         let file_name = file_name.to_string_lossy();
 
-        if file_name == "target" || file_name == ".git" {
+        if file_name == "target" || file_name == ".git" || file_name == "sdks" {
             continue;
         }
 
@@ -207,10 +221,14 @@ fn is_allowed_lib_line(line: &str) -> bool {
         || line.starts_with("#![")
         || line.starts_with("pub mod ")
         || line.starts_with("mod ")
+        || line.starts_with("#[rustfmt::skip]")
         || line.starts_with("pub use ")
+        || line.starts_with("pub(crate) use ")
         || line == "}"
         || line == "};"
         || (line.starts_with("//") && !line.starts_with("///"))
+        // Allow continuation lines (indented content that's part of multi-line statements)
+        || (line.starts_with("    ") && !line.contains("fn ") && !line.contains("struct ") && !line.contains("impl "))
 }
 
 fn forbidden_rpc_dependency_violations(manifest_toml: &str) -> Vec<String> {

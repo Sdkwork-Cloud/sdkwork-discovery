@@ -32,7 +32,7 @@ message WatchConfigRequest {
 }
 
 message WatchConfigResponse {
-  string event_type = 1;
+  sdkwork.discovery.common.v1.WatchEventType event_type = 1;
   string release_id = 2;
   string group = 3;
   string key = 4;

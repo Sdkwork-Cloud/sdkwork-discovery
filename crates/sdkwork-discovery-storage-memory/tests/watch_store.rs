@@ -22,6 +22,9 @@ fn register_command(instance_id: &str, now_ms: u64) -> RegisterInstanceCommand {
         metadata: Default::default(),
         lease_ttl_seconds: 30,
         now_ms,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 

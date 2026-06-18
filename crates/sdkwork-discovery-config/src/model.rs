@@ -12,6 +12,7 @@ pub struct DiscoveryRuntimeConfig {
     pub registry: RegistryConfig,
     pub config_registry: ConfigRegistryConfig,
     pub watch: WatchConfig,
+    pub resilience: ResilienceConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,6 +163,15 @@ impl StorageRole {
             _ => None,
         }
     }
+
+    pub fn is_primary_capable_for_provider(self, provider: StorageProvider) -> bool {
+        match provider {
+            StorageProvider::Memory | StorageProvider::Postgres | StorageProvider::Sqlite => {
+                self == Self::Primary
+            }
+            StorageProvider::Redis | StorageProvider::Etcd | StorageProvider::Consul => true,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -171,6 +181,8 @@ pub struct RegistryConfig {
     pub max_lease_ttl_seconds: u64,
     pub expiry_scan_interval_ms: u64,
     pub expiry_scan_batch_size: usize,
+    #[serde(default)]
+    pub health_check_scan_interval_ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -190,6 +202,82 @@ pub struct WatchConfig {
     pub heartbeat_interval_ms: u64,
     pub durable_poll_interval_ms: u64,
     pub durable_replay_batch_size: usize,
+    #[serde(default = "default_event_gc_interval_ms")]
+    pub event_gc_interval_ms: u64,
+    #[serde(default = "default_event_gc_retention_count")]
+    pub event_gc_retention_count: u64,
+    #[serde(default = "default_event_gc_batch_size")]
+    pub event_gc_batch_size: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Default)]
+pub struct ResilienceConfig {
+    #[serde(default)]
+    pub circuit_breaker: ResilienceCircuitBreakerConfig,
+    #[serde(default)]
+    pub rate_limit: ResilienceRateLimitConfig,
+    #[serde(default)]
+    pub degradation: ResilienceDegradationConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ResilienceCircuitBreakerConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_circuit_breaker_failure_threshold")]
+    pub failure_threshold: u32,
+    #[serde(default = "default_circuit_breaker_recovery_timeout_ms")]
+    pub recovery_timeout_ms: u64,
+    #[serde(default = "default_circuit_breaker_half_open_max_requests")]
+    pub half_open_max_requests: u32,
+}
+
+impl Default for ResilienceCircuitBreakerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            failure_threshold: default_circuit_breaker_failure_threshold(),
+            recovery_timeout_ms: default_circuit_breaker_recovery_timeout_ms(),
+            half_open_max_requests: default_circuit_breaker_half_open_max_requests(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ResilienceRateLimitConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_rate_limit_requests_per_second")]
+    pub requests_per_second: u64,
+    #[serde(default = "default_rate_limit_burst_capacity")]
+    pub burst_capacity: u64,
+}
+
+impl Default for ResilienceRateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            requests_per_second: default_rate_limit_requests_per_second(),
+            burst_capacity: default_rate_limit_burst_capacity(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ResilienceDegradationConfig {
+    #[serde(default)]
+    pub read_only_on_storage_failure: bool,
+    #[serde(default = "default_degradation_stale_read_max_age_ms")]
+    pub stale_read_max_age_ms: u64,
+}
+
+impl Default for ResilienceDegradationConfig {
+    fn default() -> Self {
+        Self {
+            read_only_on_storage_failure: false,
+            stale_read_max_age_ms: default_degradation_stale_read_max_age_ms(),
+        }
+    }
 }
 
 impl DiscoveryRuntimeConfig {
@@ -248,8 +336,21 @@ impl DiscoveryRuntimeConfig {
 
         self.validate_security()?;
         self.validate_storage()?;
+        self.validate_storage_roles()?;
+        self.validate_resilience()?;
 
         if self.runtime.environment == RuntimeEnvironment::Production {
+            if self.security.allow_unsigned_local_context {
+                return Err(DiscoveryError::InvalidConfig(
+                    "production security config must disable unsigned local context".to_string(),
+                ));
+            }
+
+            require_file_reference(
+                "service-token HMAC secret file",
+                self.security.service_token.hmac_secret_file.as_deref(),
+            )?;
+
             if self.storage.apply_initial_schema {
                 return Err(DiscoveryError::InvalidConfig(
                     "production storage must not apply initial schema automatically".to_string(),
@@ -296,6 +397,62 @@ impl DiscoveryRuntimeConfig {
         }
 
         self.validate_unsigned_local_context()?;
+
+        Ok(())
+    }
+
+    fn validate_resilience(&self) -> DiscoveryResult<()> {
+        if self.resilience.circuit_breaker.enabled
+            && self.resilience.circuit_breaker.failure_threshold == 0
+        {
+            return Err(DiscoveryError::InvalidConfig(
+                "resilience circuit breaker failure threshold must be greater than zero when enabled"
+                    .to_string(),
+            ));
+        }
+
+        if self.resilience.circuit_breaker.enabled
+            && self.resilience.circuit_breaker.recovery_timeout_ms == 0
+        {
+            return Err(DiscoveryError::InvalidConfig(
+                "resilience circuit breaker recovery timeout must be greater than zero when enabled"
+                    .to_string(),
+            ));
+        }
+
+        if self.resilience.circuit_breaker.enabled
+            && self.resilience.circuit_breaker.half_open_max_requests == 0
+        {
+            return Err(DiscoveryError::InvalidConfig(
+                "resilience circuit breaker half-open max requests must be greater than zero when enabled"
+                    .to_string(),
+            ));
+        }
+
+        if self.resilience.rate_limit.enabled {
+            if self.resilience.rate_limit.requests_per_second == 0 {
+                return Err(DiscoveryError::InvalidConfig(
+                    "resilience rate limit requests per second must be greater than zero when enabled"
+                        .to_string(),
+                ));
+            }
+
+            if self.resilience.rate_limit.burst_capacity == 0 {
+                return Err(DiscoveryError::InvalidConfig(
+                    "resilience rate limit burst capacity must be greater than zero when enabled"
+                        .to_string(),
+                ));
+            }
+        }
+
+        if self.resilience.degradation.read_only_on_storage_failure
+            && self.resilience.degradation.stale_read_max_age_ms == 0
+        {
+            return Err(DiscoveryError::InvalidConfig(
+                "resilience degradation stale read max age must be greater than zero when read-only degradation is enabled"
+                    .to_string(),
+            ));
+        }
 
         Ok(())
     }
@@ -410,6 +567,44 @@ impl DiscoveryRuntimeConfig {
             StorageProvider::Consul => validate_transport("consul", &self.storage.consul, false),
         }
     }
+
+    fn validate_storage_roles(&self) -> DiscoveryResult<()> {
+        let provider = self.storage.provider.as_str();
+
+        if !self
+            .storage
+            .registry_role
+            .is_primary_capable_for_provider(self.storage.provider)
+        {
+            return Err(DiscoveryError::InvalidConfig(format!(
+                "storage provider {provider} requires registry_role = primary"
+            )));
+        }
+
+        if self.config_registry.enabled
+            && !self
+                .storage
+                .config_role
+                .is_primary_capable_for_provider(self.storage.provider)
+        {
+            return Err(DiscoveryError::InvalidConfig(format!(
+                "enabled config registry with storage provider {provider} requires config_role = primary"
+            )));
+        }
+
+        if self.watch.enabled
+            && !self
+                .storage
+                .watch_role
+                .is_primary_capable_for_provider(self.storage.provider)
+        {
+            return Err(DiscoveryError::InvalidConfig(format!(
+                "enabled watch with storage provider {provider} requires watch_role = primary"
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 fn is_loopback_bind_host(value: &str) -> bool {
@@ -520,4 +715,40 @@ fn validate_transport(
         }
         _ => Ok(()),
     }
+}
+
+fn default_event_gc_interval_ms() -> u64 {
+    60_000
+}
+
+fn default_event_gc_retention_count() -> u64 {
+    10_000
+}
+
+fn default_event_gc_batch_size() -> usize {
+    1_000
+}
+
+fn default_circuit_breaker_failure_threshold() -> u32 {
+    5
+}
+
+fn default_circuit_breaker_recovery_timeout_ms() -> u64 {
+    30_000
+}
+
+fn default_circuit_breaker_half_open_max_requests() -> u32 {
+    3
+}
+
+fn default_rate_limit_requests_per_second() -> u64 {
+    1_000
+}
+
+fn default_rate_limit_burst_capacity() -> u64 {
+    1_000
+}
+
+fn default_degradation_stale_read_max_age_ms() -> u64 {
+    60_000
 }

@@ -292,8 +292,11 @@ fn validate_manifest_standard(manifest: &RpcManifestDocument) -> Vec<String> {
             );
             require_value(
                 &mut violations,
-                matches!(method.idempotency.as_str(), "none" | "natural" | "required"),
-                &format!("{method_name}.idempotency must be none, natural, or required"),
+                matches!(
+                    method.idempotency.as_str(),
+                    "none" | "optional" | "required"
+                ),
+                &format!("{method_name}.idempotency must be none, optional, or required"),
             );
             require_value(
                 &mut violations,
@@ -401,7 +404,7 @@ fn validate_write_method_metadata(
     let expected_idempotency = if service.surface == "backend" {
         "required"
     } else {
-        "natural"
+        "optional"
     };
     require_value(
         violations,

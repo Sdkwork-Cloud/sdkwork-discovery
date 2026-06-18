@@ -4,9 +4,9 @@ use std::fs;
 use sdkwork_discovery_config::{DiscoveryRuntimeConfig, StorageProvider};
 use sdkwork_discovery_core::{ConfigPolicy, DiscoveryControlPlane, RegistryPolicy};
 use sdkwork_discovery_rpc::{
-    DiscoveryRpcRuntime, DiscoveryRpcRuntimeConfig, DiscoveryRpcServerConfig,
-    DiscoveryRpcServerHandle, DiscoveryRpcServiceTokenVerifierConfig, DiscoveryRpcServices,
-    DiscoveryRpcTlsIdentity,
+    CircuitBreakerConfig, DegradationConfig, DiscoveryRpcRuntime, DiscoveryRpcRuntimeConfig,
+    DiscoveryRpcServerConfig, DiscoveryRpcServerHandle, DiscoveryRpcServiceTokenVerifierConfig,
+    DiscoveryRpcServices, DiscoveryRpcTlsIdentity, RateLimitConfig, RuntimeResilienceConfig,
 };
 use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore, WatchEventStore};
 use sdkwork_discovery_storage_memory::MemoryDiscoveryStore;
@@ -298,7 +298,35 @@ fn rpc_runtime_config(
         registry_expiry_scan_batch_size: config.registry.expiry_scan_batch_size,
         allow_unsigned_local_context: config.security.allow_unsigned_local_context,
         service_token_verifier: service_token_verifier_config(config)?,
+        event_gc_interval_ms: config.watch.event_gc_interval_ms,
+        event_gc_retention_count: config.watch.event_gc_retention_count,
+        event_gc_batch_size: config.watch.event_gc_batch_size,
+        resilience: rpc_resilience_config(config),
+        health_check_scan_interval_ms: config.registry.health_check_scan_interval_ms,
     })
+}
+
+fn rpc_resilience_config(config: &DiscoveryRuntimeConfig) -> RuntimeResilienceConfig {
+    RuntimeResilienceConfig {
+        circuit_breaker: CircuitBreakerConfig {
+            enabled: config.resilience.circuit_breaker.enabled,
+            failure_threshold: config.resilience.circuit_breaker.failure_threshold,
+            recovery_timeout_ms: config.resilience.circuit_breaker.recovery_timeout_ms,
+            half_open_max_requests: config.resilience.circuit_breaker.half_open_max_requests,
+        },
+        rate_limit: RateLimitConfig {
+            enabled: config.resilience.rate_limit.enabled,
+            requests_per_second: config.resilience.rate_limit.requests_per_second,
+            burst_capacity: config.resilience.rate_limit.burst_capacity,
+        },
+        degradation: DegradationConfig {
+            read_only_on_storage_failure: config
+                .resilience
+                .degradation
+                .read_only_on_storage_failure,
+            stale_read_max_age_ms: config.resilience.degradation.stale_read_max_age_ms,
+        },
+    }
 }
 
 fn service_token_verifier_config(

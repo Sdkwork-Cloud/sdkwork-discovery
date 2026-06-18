@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 use sdkwork_discovery_contract::{
-    ConfigFormat, ConfigRelease, ConfigScope, CreateConfigDraftCommand, DiscoverInstancesQuery,
-    DiscoverInstancesResult, DiscoveryError, DiscoveryEvent, DiscoveryEventKind, DiscoveryResult,
-    EffectiveConfig, IdempotencyContext, InstanceStatus, ListServicesQuery, ListServicesResult,
-    PublishConfigCommand, RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand,
-    RenewLeaseResult, ReportInstanceStatusCommand, ReportInstanceStatusResult,
-    RetrieveEffectiveConfigQuery, RetrieveInstanceQuery, RollbackConfigCommand, ServiceInstance,
-    ServiceSummary,
+    BatchRegisterResult, ConfigFormat, ConfigRelease, ConfigScope, CreateConfigDraftCommand,
+    DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryError, DiscoveryEvent,
+    DiscoveryEventKind, DiscoveryResult, EffectiveConfig, IdempotencyContext, InstanceStatus,
+    ListServicesQuery, ListServicesResult, PublishConfigCommand, RegisterInstanceCommand,
+    RegisterInstanceResult, RenewLeaseCommand, RenewLeaseResult, ReportInstanceStatusCommand,
+    ReportInstanceStatusResult, RetrieveEffectiveConfigQuery, RetrieveInstanceQuery,
+    RollbackConfigCommand, ServiceInstance, ServiceSummary,
 };
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3 as backend_proto;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1 as common_proto;
@@ -48,6 +48,13 @@ pub fn register_instance_command(
         metadata: request.metadata,
         lease_ttl_seconds: request.lease_ttl_seconds,
         now_ms,
+        expected_revision: request.expected_revision,
+        persistent: request.persistent,
+        health_check: request
+            .health_check
+            .as_ref()
+            .map(health_check_from_proto)
+            .transpose()?,
     })
 }
 
@@ -60,6 +67,51 @@ pub fn register_instance_response(
         lease_id: result.lease_id,
         expires_at: Some(timestamp_from_millis(result.expires_at_ms)),
         metadata: Some(response_metadata(result.revision, request_id, trace_id)),
+    }
+}
+
+pub fn batch_register_instances_commands(
+    request: internal_proto::BatchRegisterInstancesRequest,
+    now_ms: u64,
+) -> DiscoveryResult<Vec<RegisterInstanceCommand>> {
+    request
+        .instances
+        .into_iter()
+        .map(|instance| register_instance_command(instance, now_ms))
+        .collect()
+}
+
+pub fn batch_register_instances_response(
+    result: BatchRegisterResult,
+    request_id: String,
+    trace_id: String,
+) -> internal_proto::BatchRegisterInstancesResponse {
+    let revision = result
+        .results
+        .last()
+        .map(|register_result| register_result.revision)
+        .unwrap_or(0);
+
+    internal_proto::BatchRegisterInstancesResponse {
+        results: result
+            .results
+            .into_iter()
+            .map(|register_result| internal_proto::RegisterInstanceResponse {
+                lease_id: register_result.lease_id,
+                expires_at: Some(timestamp_from_millis(register_result.expires_at_ms)),
+                metadata: None,
+            })
+            .collect(),
+        errors: result
+            .errors
+            .into_iter()
+            .map(|error| common_proto::BatchOperationError {
+                index: error.index as u32,
+                error_code: error.error_code,
+                error_message: error.error_message,
+            })
+            .collect(),
+        metadata: Some(response_metadata(revision, request_id, trace_id)),
     }
 }
 
@@ -109,6 +161,7 @@ pub fn report_status_command(
         instance_id: request.instance_id,
         status: instance_status_from_proto(request.status)?,
         now_ms,
+        expected_revision: request.expected_revision,
     })
 }
 
@@ -140,12 +193,41 @@ pub fn discover_instances_query(
     validate_required_field("service_name", &request.service_name)?;
     validate_optional_field("protocol", &request.protocol)?;
 
+    let label_filters = request
+        .label_filters
+        .into_iter()
+        .map(|filter| {
+            let op = match filter.op {
+                1 => sdkwork_discovery_contract::LabelFilterOp::Eq,
+                2 => sdkwork_discovery_contract::LabelFilterOp::NotEq,
+                3 => sdkwork_discovery_contract::LabelFilterOp::In,
+                4 => sdkwork_discovery_contract::LabelFilterOp::Exists,
+                _ => sdkwork_discovery_contract::LabelFilterOp::Eq,
+            };
+            sdkwork_discovery_contract::LabelFilter {
+                key: filter.key,
+                op,
+                value: filter.value,
+            }
+        })
+        .collect();
+
+    let sort_by = match request.sort_by {
+        1 => Some(sdkwork_discovery_contract::DiscoverSortBy::InstanceId),
+        2 => Some(sdkwork_discovery_contract::DiscoverSortBy::Priority),
+        3 => Some(sdkwork_discovery_contract::DiscoverSortBy::Weight),
+        4 => Some(sdkwork_discovery_contract::DiscoverSortBy::WeightedRandom),
+        _ => None,
+    };
+
     Ok(DiscoverInstancesQuery {
         namespace: request.namespace,
         environment: request.environment,
         service_name: request.service_name,
         healthy_only: request.healthy_only,
         protocol: empty_string_as_none(request.protocol),
+        label_filters,
+        sort_by,
     })
 }
 
@@ -343,17 +425,24 @@ pub fn list_services_response(
     }
 }
 
-pub fn watch_event_type(event: &DiscoveryEvent) -> String {
+pub fn watch_event_type(event: &DiscoveryEvent) -> i32 {
     match event.kind {
-        DiscoveryEventKind::InstanceRegistered => "instance_registered",
-        DiscoveryEventKind::InstanceUpdated => "instance_updated",
-        DiscoveryEventKind::InstanceStatusReported => "instance_status_reported",
-        DiscoveryEventKind::InstanceRenewed => "instance_renewed",
-        DiscoveryEventKind::InstanceDeregistered => "instance_deregistered",
-        DiscoveryEventKind::ConfigPublished => "config_published",
-        DiscoveryEventKind::ConfigRolledBack => "config_rolled_back",
+        DiscoveryEventKind::InstanceRegistered => {
+            common_proto::WatchEventType::InstanceRegistered as i32
+        }
+        DiscoveryEventKind::InstanceUpdated => common_proto::WatchEventType::InstanceUpdated as i32,
+        DiscoveryEventKind::InstanceStatusReported => {
+            common_proto::WatchEventType::InstanceStatusReported as i32
+        }
+        DiscoveryEventKind::InstanceRenewed => common_proto::WatchEventType::InstanceRenewed as i32,
+        DiscoveryEventKind::InstanceDeregistered => {
+            common_proto::WatchEventType::InstanceDeregistered as i32
+        }
+        DiscoveryEventKind::ConfigPublished => common_proto::WatchEventType::ConfigPublished as i32,
+        DiscoveryEventKind::ConfigRolledBack => {
+            common_proto::WatchEventType::ConfigRolledBack as i32
+        }
     }
-    .to_string()
 }
 
 pub fn response_metadata(
@@ -413,6 +502,84 @@ pub(crate) fn service_instance_to_proto(
         lease_id: instance.lease_id,
         expires_at: Some(timestamp_from_millis(instance.expires_at_ms)),
         revision: instance.revision,
+        health_check: instance.health_check.as_ref().map(health_check_to_proto),
+    }
+}
+
+fn health_check_from_proto(
+    config: &common_proto::HealthCheckConfig,
+) -> DiscoveryResult<sdkwork_discovery_contract::HealthCheckConfig> {
+    let Some(probe) = config.probe.as_ref() else {
+        return Err(DiscoveryError::InvalidArgument(
+            "health_check.probe is required".to_string(),
+        ));
+    };
+    Ok(sdkwork_discovery_contract::HealthCheckConfig {
+        probe: health_check_probe_from_proto(probe)?,
+        interval_ms: config.interval_ms,
+        timeout_ms: config.timeout_ms,
+        unhealthy_threshold: config.unhealthy_threshold,
+        healthy_threshold: config.healthy_threshold,
+    })
+}
+
+fn health_check_probe_from_proto(
+    probe: &common_proto::HealthCheckProbe,
+) -> DiscoveryResult<sdkwork_discovery_contract::HealthCheckProbe> {
+    use common_proto::HealthCheckProbeKind;
+    match HealthCheckProbeKind::try_from(probe.kind) {
+        Ok(HealthCheckProbeKind::Tcp) => Ok(sdkwork_discovery_contract::HealthCheckProbe::Tcp),
+        Ok(HealthCheckProbeKind::Http) => Ok(sdkwork_discovery_contract::HealthCheckProbe::Http {
+            path: probe.http_path.clone(),
+            expected_status: probe.http_expected_status as u16,
+        }),
+        Ok(HealthCheckProbeKind::Grpc) => Ok(sdkwork_discovery_contract::HealthCheckProbe::Grpc {
+            service_name: probe.grpc_service_name.clone(),
+        }),
+        _ => Err(DiscoveryError::InvalidArgument(
+            "health_check.probe kind is required".to_string(),
+        )),
+    }
+}
+
+fn health_check_to_proto(
+    config: &sdkwork_discovery_contract::HealthCheckConfig,
+) -> common_proto::HealthCheckConfig {
+    use common_proto::HealthCheckProbeKind;
+    let (kind, http_path, http_expected_status, grpc_service_name) = match &config.probe {
+        sdkwork_discovery_contract::HealthCheckProbe::Tcp => (
+            HealthCheckProbeKind::Tcp as i32,
+            String::new(),
+            0,
+            String::new(),
+        ),
+        sdkwork_discovery_contract::HealthCheckProbe::Http {
+            path,
+            expected_status,
+        } => (
+            HealthCheckProbeKind::Http as i32,
+            path.clone(),
+            u32::from(*expected_status),
+            String::new(),
+        ),
+        sdkwork_discovery_contract::HealthCheckProbe::Grpc { service_name } => (
+            HealthCheckProbeKind::Grpc as i32,
+            String::new(),
+            0,
+            service_name.clone(),
+        ),
+    };
+    common_proto::HealthCheckConfig {
+        probe: Some(common_proto::HealthCheckProbe {
+            kind,
+            http_path,
+            http_expected_status,
+            grpc_service_name,
+        }),
+        interval_ms: config.interval_ms,
+        timeout_ms: config.timeout_ms,
+        unhealthy_threshold: config.unhealthy_threshold,
+        healthy_threshold: config.healthy_threshold,
     }
 }
 

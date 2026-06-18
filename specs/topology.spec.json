@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 2,
+  "kind": "sdkwork.app.topology",
+  "appId": "sdkwork-discovery",
+  "archetype": "application-http-gateway",
+  "profileRoot": "configs/topology",
+  "profilePattern": "{hosting}.{serviceLayout}.{environment}.env",
+  "vocabulary": {
+    "hosting": { "allowed": ["self-hosted", "cloud-hosted"] },
+    "serviceLayout": { "allowed": ["unified-process"] },
+    "environment": { "allowed": ["development", "production"] },
+    "connectivityPlane": { "allowed": ["application", "operations"] }
+  },
+  "defaults": {
+    "developmentProfileId": "self-hosted.unified-process.development",
+    "productionProfileId": "cloud-hosted.unified-process.production"
+  },
+  "profileFiles": {
+    "self-hosted.unified-process.development": "configs/topology/self-hosted.unified-process.development.env",
+    "cloud-hosted.unified-process.development": "configs/topology/cloud-hosted.unified-process.development.env",
+    "self-hosted.unified-process.production": "configs/topology/self-hosted.unified-process.production.env",
+    "cloud-hosted.unified-process.production": "configs/topology/cloud-hosted.unified-process.production.env"
+  },
+  "envKeys": {
+    "hosting": "SDKWORK_DISCOVERY_HOSTING",
+    "serviceLayout": "SDKWORK_DISCOVERY_SERVICE_LAYOUT",
+    "environment": "SDKWORK_DISCOVERY_ENVIRONMENT",
+    "profileId": "SDKWORK_DISCOVERY_PROFILE_ID"
+  },
+  "surfaces": {
+    "application.public-ingress": {
+      "connectivityPlane": "application",
+      "protocols": ["grpc"],
+      "bindEnv": "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND",
+      "grpcUrlEnv": "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL"
+    },
+    "operations.control-ingress": {
+      "connectivityPlane": "operations",
+      "protocols": ["grpc"],
+      "bindEnv": "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND",
+      "grpcUrlEnv": "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL",
+      "optional": true
+    }
+  },
+  "cloudPublicHosts": {
+    "application.public-ingress": { "grpcHost": "discovery.sdkwork.com" },
+    "operations.control-ingress": { "grpcHost": "discovery-admin.sdkwork.com" }
+  },
+  "database": {
+    "appPrefix": "SDKWORK_DISCOVERY"
+  },
+  "components": {
+    "serviceHost": {
+      "crate": "sdkwork-discovery-service-host",
+      "binary": "sdkwork-discovery-service-host"
+    }
+  },
+  "orchestration": {
+    "profiles": {
+      "self-hosted.unified-process.development": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-discovery-service-host",
+            "binary": "sdkwork-discovery-service-host",
+            "required": true
+          }
+        ],
+        "healthSurfaces": ["application.public-ingress"]
+      },
+      "cloud-hosted.unified-process.development": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-discovery-service-host",
+            "binary": "sdkwork-discovery-service-host",
+            "required": true
+          }
+        ],
+        "healthSurfaces": ["application.public-ingress"]
+      },
+      "self-hosted.unified-process.production": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-discovery-service-host",
+            "binary": "sdkwork-discovery-service-host",
+            "required": true
+          }
+        ],
+        "healthSurfaces": ["application.public-ingress"]
+      },
+      "cloud-hosted.unified-process.production": {
+        "processes": [
+          {
+            "id": "application.public-ingress",
+            "crate": "sdkwork-discovery-service-host",
+            "binary": "sdkwork-discovery-service-host",
+            "required": true
+          }
+        ],
+        "healthSurfaces": ["application.public-ingress"]
+      }
+    }
+  },
+  "packaging": {
+    "targets": [
+      {
+        "id": "linux-x64-server-tar-gz",
+        "profile": "application-public-ingress",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": ["tar.gz"],
+        "runner": "ubuntu-24.04",
+        "rustTarget": "x86_64-unknown-linux-gnu",
+        "outputGlob": "dist/server/sdkwork-discovery-*-linux-x64-server.tar.gz"
+      }
+    ]
+  },
+  "scripts": {
+    "discoveryDev": "scripts/discovery-dev.mjs",
+    "pnpm": {
+      "discovery:dev": {
+        "script": "discovery:dev",
+        "hosting": "self-hosted",
+        "serviceLayout": "unified-process",
+        "target": "server"
+      },
+      "discovery:dev:cloud": {
+        "script": "discovery:dev:cloud",
+        "hosting": "cloud-hosted",
+        "serviceLayout": "unified-process",
+        "target": "server"
+      },
+      "topology:validate": {
+        "script": "topology:validate",
+        "command": "sdkwork-topology validate"
+      },
+      "topology:matrix": {
+        "script": "topology:matrix",
+        "command": "sdkwork-topology print-matrix --profile all"
+      }
+    }
+  },
+  "retired": {
+    "envKeys": [
+      "SDKWORK_DISCOVERY_TOPOLOGY",
+      "SDKWORK_DISCOVERY_GRPC_BIND_HOST",
+      "SDKWORK_DISCOVERY_GRPC_PORT",
+      "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT"
+    ],
+    "notes": "Legacy grpc bind env keys were removed; use application.public-ingress and operations.control-ingress surface bind keys."
+  }
+}

@@ -37,6 +37,17 @@ pub(crate) fn apply_env_overlay(
     for (key, value) in env {
         match key.as_str() {
             "SDKWORK_DISCOVERY_ENVIRONMENT" | "SDKWORK_DISCOVERY_CONFIG_PROFILE" => {}
+            "SDKWORK_DISCOVERY_HOSTING"
+            | "SDKWORK_DISCOVERY_SERVICE_LAYOUT"
+            | "SDKWORK_DISCOVERY_PROFILE_ID" => {}
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL"
+            | "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL" => {}
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND" => {
+                apply_public_ingress_bind(config, value)?;
+            }
+            "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND" => {
+                apply_operations_control_bind(config, value)?;
+            }
             "SDKWORK_DISCOVERY_DEPLOYMENT_MODE" => {
                 config.runtime.deployment_mode =
                     RuntimeDeploymentMode::parse(value).ok_or_else(|| {
@@ -119,15 +130,6 @@ pub(crate) fn apply_env_overlay(
                     "SDKWORK_DISCOVERY_STORAGE_CONSUL_",
                 )?;
             }
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST" => {
-                config.server.grpc_bind_host = value.clone();
-            }
-            "SDKWORK_DISCOVERY_GRPC_PORT" => {
-                config.server.grpc_port = parse_u16_env(key, value)?;
-            }
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT" => {
-                config.server.admin_grpc_port = parse_u16_env(key, value)?;
-            }
             "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS" => {
                 config.server.default_deadline_ms = parse_u64_env(key, value)?;
             }
@@ -161,6 +163,9 @@ pub(crate) fn apply_env_overlay(
             "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_BATCH_SIZE" => {
                 config.registry.expiry_scan_batch_size = parse_usize_env(key, value)?;
             }
+            "SDKWORK_DISCOVERY_REGISTRY_HEALTH_CHECK_SCAN_INTERVAL_MS" => {
+                config.registry.health_check_scan_interval_ms = parse_u64_env(key, value)?;
+            }
             "SDKWORK_DISCOVERY_WATCH_ENABLED" => {
                 config.watch.enabled = parse_bool_env(key, value)?;
             }
@@ -178,6 +183,44 @@ pub(crate) fn apply_env_overlay(
             }
             "SDKWORK_DISCOVERY_WATCH_DURABLE_REPLAY_BATCH_SIZE" => {
                 config.watch.durable_replay_batch_size = parse_usize_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_INTERVAL_MS" => {
+                config.watch.event_gc_interval_ms = parse_u64_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_RETENTION_COUNT" => {
+                config.watch.event_gc_retention_count = parse_u64_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_BATCH_SIZE" => {
+                config.watch.event_gc_batch_size = parse_usize_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_ENABLED" => {
+                config.resilience.circuit_breaker.enabled = parse_bool_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_FAILURE_THRESHOLD" => {
+                config.resilience.circuit_breaker.failure_threshold = parse_u32_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_MS" => {
+                config.resilience.circuit_breaker.recovery_timeout_ms = parse_u64_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_HALF_OPEN_MAX_REQUESTS" => {
+                config.resilience.circuit_breaker.half_open_max_requests =
+                    parse_u32_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_ENABLED" => {
+                config.resilience.rate_limit.enabled = parse_bool_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_REQUESTS_PER_SECOND" => {
+                config.resilience.rate_limit.requests_per_second = parse_u64_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_BURST_CAPACITY" => {
+                config.resilience.rate_limit.burst_capacity = parse_u64_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_READ_ONLY_ON_STORAGE_FAILURE" => {
+                config.resilience.degradation.read_only_on_storage_failure =
+                    parse_bool_env(key, value)?;
+            }
+            "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_STALE_READ_MAX_AGE_MS" => {
+                config.resilience.degradation.stale_read_max_age_ms = parse_u64_env(key, value)?;
             }
             "SDKWORK_DISCOVERY_RPC_AUTH_MODE" => {
                 config.security.auth_mode = SecurityAuthMode::parse(value).ok_or_else(|| {
@@ -664,6 +707,54 @@ fn parse_usize_env(key: &str, value: &str) -> DiscoveryResult<usize> {
     value.parse::<usize>().map_err(|error| {
         DiscoveryError::InvalidConfig(format!("invalid integer for {key}: {error}"))
     })
+}
+
+fn apply_public_ingress_bind(
+    config: &mut DiscoveryRuntimeConfig,
+    bind: &str,
+) -> DiscoveryResult<()> {
+    let (host, port) =
+        parse_host_port_bind("SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND", bind)?;
+    config.server.grpc_bind_host = host;
+    config.server.grpc_port = port;
+    Ok(())
+}
+
+fn apply_operations_control_bind(
+    config: &mut DiscoveryRuntimeConfig,
+    bind: &str,
+) -> DiscoveryResult<()> {
+    let (host, port) =
+        parse_host_port_bind("SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND", bind)?;
+    if config.server.grpc_bind_host.is_empty() {
+        config.server.grpc_bind_host = host;
+    }
+    config.server.admin_grpc_port = port;
+    Ok(())
+}
+
+fn parse_host_port_bind(key: &str, bind: &str) -> DiscoveryResult<(String, u16)> {
+    let normalized = bind.trim();
+    if normalized.is_empty() {
+        return Err(DiscoveryError::InvalidConfig(format!(
+            "invalid bind address for {key}: empty value"
+        )));
+    }
+
+    let separator = normalized.rfind(':').ok_or_else(|| {
+        DiscoveryError::InvalidConfig(format!(
+            "invalid bind address for {key}: expected host:port"
+        ))
+    })?;
+    if separator == 0 {
+        return Err(DiscoveryError::InvalidConfig(format!(
+            "invalid bind address for {key}: expected host:port"
+        )));
+    }
+
+    let host = normalized[..separator].to_string();
+    let port = parse_u16_env(key, &normalized[separator + 1..])?;
+    Ok((host, port))
 }
 
 fn parse_bool_env(key: &str, value: &str) -> DiscoveryResult<bool> {

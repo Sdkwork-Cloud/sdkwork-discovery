@@ -2,6 +2,7 @@
 members = [
     "crates/sdkwork-discovery-contract",
     "crates/sdkwork-discovery-config",
+    "crates/sdkwork-discovery-health-checker",
     "crates/sdkwork-discovery-storage-contract",
     "crates/sdkwork-discovery-storage-memory",
     "crates/sdkwork-discovery-storage-postgres",
@@ -41,10 +42,12 @@ protoc-bin-vendored = "3.2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = "0.24"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 uuid = { version = "1.18", features = ["v7"] }
 
 sdkwork-discovery-config = { path = "crates/sdkwork-discovery-config" }
 sdkwork-discovery-contract = { path = "crates/sdkwork-discovery-contract" }
+sdkwork-discovery-health-checker = { path = "crates/sdkwork-discovery-health-checker" }
 sdkwork-discovery-core = { path = "crates/sdkwork-discovery-core" }
 sdkwork-discovery-rpc = { path = "crates/sdkwork-discovery-rpc" }
 sdkwork-discovery-rpc-proto = { path = "crates/sdkwork-discovery-rpc-proto" }

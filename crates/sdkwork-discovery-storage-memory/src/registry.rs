@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use sdkwork_discovery_contract::{
+    finalize_discover_instances, BatchOperationError, BatchRegisterResult,
     DeregisterInstanceResult, DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryError,
     DiscoveryEvent, DiscoveryEventKind, DiscoveryResult, ListServicesQuery, ListServicesResult,
     RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand, RenewLeaseResult,
@@ -15,6 +16,10 @@ use crate::validation::validate_non_empty;
 
 #[async_trait]
 impl RegistryStore for MemoryDiscoveryStore {
+    async fn current_revision(&self) -> DiscoveryResult<u64> {
+        Ok(self.revision)
+    }
+
     async fn register_instance(
         &mut self,
         command: RegisterInstanceCommand,
@@ -40,6 +45,19 @@ impl RegistryStore for MemoryDiscoveryStore {
             service_name: command.service_name.clone(),
             instance_id: command.instance_id.clone(),
         };
+
+        // CAS check: if expected_revision is set, verify it matches current revision
+        if let Some(expected_revision) = command.expected_revision {
+            if let Some(existing) = self.instances.get(&key) {
+                if existing.revision != expected_revision {
+                    return Err(DiscoveryError::Conflict(format!(
+                        "expected revision {} but found {}",
+                        expected_revision, existing.revision
+                    )));
+                }
+            }
+        }
+
         let existing_lease_id = self.instances.get(&key).and_then(|instance| {
             if instance.expires_at_ms > command.now_ms {
                 Some(instance.lease_id.clone())
@@ -50,7 +68,11 @@ impl RegistryStore for MemoryDiscoveryStore {
         let was_update = existing_lease_id.is_some();
         let lease_id = existing_lease_id.unwrap_or_else(|| self.next_id("lease"));
         let revision = self.next_revision();
-        let expires_at_ms = lease_expires_at_ms(command.now_ms, command.lease_ttl_seconds)?;
+        let expires_at_ms = if command.persistent {
+            u64::MAX
+        } else {
+            lease_expires_at_ms(command.now_ms, command.lease_ttl_seconds)?
+        };
         let event_namespace = command.namespace.clone();
         let event_environment = command.environment.clone();
         let event_service_name = command.service_name.clone();
@@ -73,6 +95,8 @@ impl RegistryStore for MemoryDiscoveryStore {
             lease_id: lease_id.clone(),
             expires_at_ms,
             revision,
+            health_check: command.health_check.clone(),
+            health_check_state: sdkwork_discovery_contract::HealthCheckRuntimeState::default(),
         };
         if let Some(previous) = self.instances.get(&key) {
             if previous.lease_id != lease_id {
@@ -106,6 +130,27 @@ impl RegistryStore for MemoryDiscoveryStore {
             revision,
             expires_at_ms,
         })
+    }
+
+    async fn batch_register_instances(
+        &mut self,
+        commands: Vec<RegisterInstanceCommand>,
+    ) -> DiscoveryResult<BatchRegisterResult> {
+        let mut results = Vec::with_capacity(commands.len());
+        let mut errors = Vec::new();
+
+        for (index, command) in commands.into_iter().enumerate() {
+            match self.register_instance(command).await {
+                Ok(result) => results.push(result),
+                Err(e) => errors.push(BatchOperationError {
+                    index,
+                    error_code: e.kind_string().to_string(),
+                    error_message: e.to_string(),
+                }),
+            }
+        }
+
+        Ok(BatchRegisterResult { results, errors })
     }
 
     async fn renew_lease(
@@ -177,14 +222,25 @@ impl RegistryStore for MemoryDiscoveryStore {
             service_name: command.service_name,
             instance_id: command.instance_id,
         };
-        let current_expires_at_ms = self
+        let current_instance = self
             .instances
             .get(&key)
-            .ok_or_else(|| DiscoveryError::NotFound("instance not found".to_string()))?
-            .expires_at_ms;
-        if current_expires_at_ms <= command.now_ms {
+            .ok_or_else(|| DiscoveryError::NotFound("instance not found".to_string()))?;
+
+        if current_instance.expires_at_ms <= command.now_ms {
             return Err(DiscoveryError::NotFound("instance not found".to_string()));
         }
+
+        // CAS check
+        if let Some(expected_revision) = command.expected_revision {
+            if current_instance.revision != expected_revision {
+                return Err(DiscoveryError::Conflict(format!(
+                    "expected revision {} but found {}",
+                    expected_revision, current_instance.revision
+                )));
+            }
+        }
+
         let revision = self.next_revision();
         let instance = self
             .instances
@@ -274,6 +330,24 @@ impl RegistryStore for MemoryDiscoveryStore {
         })
     }
 
+    async fn batch_deregister_instances(
+        &mut self,
+        namespace: &str,
+        environment: &str,
+        service_name: &str,
+        instance_ids: Vec<String>,
+        now_ms: u64,
+    ) -> DiscoveryResult<Vec<DeregisterInstanceResult>> {
+        let mut results = Vec::with_capacity(instance_ids.len());
+        for instance_id in instance_ids {
+            let result = self
+                .deregister_instance(namespace, environment, service_name, &instance_id, now_ms)
+                .await?;
+            results.push(result);
+        }
+        Ok(results)
+    }
+
     async fn expire_instances(
         &mut self,
         now_ms: u64,
@@ -353,7 +427,7 @@ impl RegistryStore for MemoryDiscoveryStore {
         validate_non_empty("service_name", &query.service_name)?;
         validate_optional_filter("protocol", query.protocol.as_deref())?;
 
-        let mut instances = self
+        let instances = self
             .instances
             .values()
             .filter(|instance| {
@@ -369,12 +443,12 @@ impl RegistryStore for MemoryDiscoveryStore {
             })
             .cloned()
             .collect::<Vec<_>>();
-        instances.sort_by(|left, right| left.instance_id.cmp(&right.instance_id));
 
-        Ok(DiscoverInstancesResult {
-            revision: self.revision,
+        Ok(finalize_discover_instances(
             instances,
-        })
+            &query,
+            self.revision,
+        ))
     }
 
     async fn retrieve_instance(
@@ -434,6 +508,39 @@ impl RegistryStore for MemoryDiscoveryStore {
             revision: self.revision,
             services: services.into_values().collect(),
         })
+    }
+
+    async fn list_active_instances_with_health_check(
+        &self,
+        now_ms: u64,
+    ) -> DiscoveryResult<Vec<ServiceInstance>> {
+        Ok(self
+            .instances
+            .values()
+            .filter(|instance| instance.health_check.is_some() && instance.expires_at_ms > now_ms)
+            .cloned()
+            .collect())
+    }
+
+    async fn update_health_check_state(
+        &mut self,
+        namespace: &str,
+        environment: &str,
+        service_name: &str,
+        instance_id: &str,
+        state: sdkwork_discovery_contract::HealthCheckRuntimeState,
+    ) -> DiscoveryResult<()> {
+        let key = InstanceKey {
+            namespace: namespace.to_string(),
+            environment: environment.to_string(),
+            service_name: service_name.to_string(),
+            instance_id: instance_id.to_string(),
+        };
+        let Some(instance) = self.instances.get_mut(&key) else {
+            return Err(DiscoveryError::NotFound("instance not found".to_string()));
+        };
+        instance.health_check_state = state;
+        Ok(())
     }
 }
 

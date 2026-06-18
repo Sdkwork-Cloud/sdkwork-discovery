@@ -3,6 +3,7 @@ use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::discovery_admi
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::{
     CreateConfigDraftRequest, PublishConfigRequest,
 };
+use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1 as common_proto;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1::InstanceStatus as ProtoInstanceStatus;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1::{
     ConfigFormat as ProtoConfigFormat, ConfigScopeType as ProtoConfigScopeType,
@@ -38,6 +39,26 @@ fn parse_env_example(input: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
+fn surface_bind_env(public_port: u16, operations_port: u16) -> BTreeMap<String, String> {
+    BTreeMap::from([
+        (
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+            format!("127.0.0.1:{public_port}"),
+        ),
+        (
+            "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND".to_string(),
+            format!("127.0.0.1:{operations_port}"),
+        ),
+    ])
+}
+
+fn public_surface_bind_env(public_port: u16) -> BTreeMap<String, String> {
+    BTreeMap::from([(
+        "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+        format!("127.0.0.1:{public_port}"),
+    )])
+}
+
 #[test]
 fn service_host_bootstrap_builds_control_plane_from_runtime_config() {
     let mut env = BTreeMap::new();
@@ -54,6 +75,46 @@ fn service_host_bootstrap_builds_control_plane_from_runtime_config() {
 
     assert_eq!(bootstrap.storage_provider_name(), "memory");
     assert_eq!(bootstrap.config().server.grpc_port, 19090);
+}
+
+#[test]
+fn service_host_bootstrap_loads_resilience_config_from_env_overlay() {
+    let env = BTreeMap::from([
+        (
+            "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
+            "memory".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_ENABLED".to_string(),
+            "true".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_REQUESTS_PER_SECOND".to_string(),
+            "25".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_BURST_CAPACITY".to_string(),
+            "50".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_INTERVAL_MS".to_string(),
+            "45000".to_string(),
+        ),
+    ]);
+
+    let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
+        include_str!("../../../etc/discovery.example.toml"),
+        &env,
+    )
+    .unwrap();
+
+    assert!(bootstrap.config().resilience.rate_limit.enabled);
+    assert_eq!(
+        bootstrap.config().resilience.rate_limit.requests_per_second,
+        25
+    );
+    assert_eq!(bootstrap.config().resilience.rate_limit.burst_capacity, 50);
+    assert_eq!(bootstrap.config().watch.event_gc_interval_ms, 45_000);
 }
 
 #[test]
@@ -100,24 +161,11 @@ fn service_host_bootstrap_maps_default_deadline_into_rpc_server_config() {
 
 #[test]
 fn service_host_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-            "19190".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            "19191".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS".to_string(),
-            "2750".to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(19190, 19191);
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS".to_string(),
+        "2750".to_string(),
+    );
 
     let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
@@ -139,20 +187,7 @@ fn service_host_bootstrap_exposes_backend_rpc_server_config_for_preflight() {
 
 #[test]
 fn service_host_runtime_exposes_rpc_server_configs_for_preflight() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-            "19192".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            "19193".to_string(),
-        ),
-    ]);
+    let env = surface_bind_env(19192, 19193);
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -323,13 +358,7 @@ async fn memory_storage_initialization_is_noop() {
 
 #[tokio::test]
 async fn memory_runtime_can_start_and_stop_grpc_server_on_ephemeral_port() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
-    ]);
+    let env = public_surface_bind_env(0);
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -351,37 +380,27 @@ async fn memory_runtime_accepts_verified_service_token_when_unsigned_context_is_
         unique_sqlite_file("service-token-secret").with_file_name("service-token-hmac.secret");
     std::fs::write(&secret_file, SERVICE_TOKEN_SECRET).unwrap();
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), port.to_string()),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_ALLOW_UNSIGNED_LOCAL_CONTEXT".to_string(),
-            "false".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_HMAC_SECRET_FILE".to_string(),
-            secret_file.to_string_lossy().into_owned(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_ISSUER".to_string(),
-            "sdkwork-discovery".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_AUDIENCE".to_string(),
-            "sdkwork-discovery-rpc".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_MAX_TTL_SECONDS".to_string(),
-            (200_u64 * 365 * 24 * 60 * 60).to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(port, port);
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_ALLOW_UNSIGNED_LOCAL_CONTEXT".to_string(),
+        "false".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_HMAC_SECRET_FILE".to_string(),
+        secret_file.to_string_lossy().into_owned(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_ISSUER".to_string(),
+        "sdkwork-discovery".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_AUDIENCE".to_string(),
+        "sdkwork-discovery-rpc".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_MAX_TTL_SECONDS".to_string(),
+        (200_u64 * 365 * 24 * 60 * 60).to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -417,20 +436,7 @@ async fn memory_runtime_starts_separate_internal_and_admin_servers_when_ports_di
     drop(internal_probe);
     drop(admin_probe);
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-            internal_port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            admin_port.to_string(),
-        ),
-    ]);
+    let env = surface_bind_env(internal_port, admin_port);
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -449,29 +455,19 @@ async fn memory_runtime_enforces_configured_registry_lease_ttl_bounds_over_grpc(
     let port = probe.local_addr().unwrap().port();
     drop(probe);
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), port.to_string()),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_REGISTRY_MIN_LEASE_TTL_SECONDS".to_string(),
-            "10".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_REGISTRY_DEFAULT_LEASE_TTL_SECONDS".to_string(),
-            "30".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_REGISTRY_MAX_LEASE_TTL_SECONDS".to_string(),
-            "300".to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(port, port);
+    env.insert(
+        "SDKWORK_DISCOVERY_REGISTRY_MIN_LEASE_TTL_SECONDS".to_string(),
+        "10".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_REGISTRY_DEFAULT_LEASE_TTL_SECONDS".to_string(),
+        "30".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_REGISTRY_MAX_LEASE_TTL_SECONDS".to_string(),
+        "300".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -504,25 +500,15 @@ async fn memory_runtime_uses_configured_expiry_scan_interval_over_grpc_watch() {
     let port = probe.local_addr().unwrap().port();
     drop(probe);
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), port.to_string()),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_REGISTRY_MIN_LEASE_TTL_SECONDS".to_string(),
-            "1".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_INTERVAL_MS".to_string(),
-            "20".to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(port, port);
+    env.insert(
+        "SDKWORK_DISCOVERY_REGISTRY_MIN_LEASE_TTL_SECONDS".to_string(),
+        "1".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_INTERVAL_MS".to_string(),
+        "20".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -560,7 +546,10 @@ async fn memory_runtime_uses_configured_expiry_scan_interval_over_grpc_watch() {
         .unwrap();
     server.shutdown().await;
 
-    assert_eq!(event.event_type, "instance_deregistered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceDeregistered as i32
+    );
     assert_eq!(event.metadata.as_ref().unwrap().revision, 2);
     let instance = event
         .instance
@@ -575,21 +564,11 @@ async fn memory_runtime_applies_config_registry_read_policy_over_grpc() {
     let port = probe.local_addr().unwrap().port();
     drop(probe);
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), port.to_string()),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_CONFIG_REGISTRY_REQUIRE_PUBLISH_FOR_READS".to_string(),
-            "false".to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(port, port);
+    env.insert(
+        "SDKWORK_DISCOVERY_CONFIG_REGISTRY_REQUIRE_PUBLISH_FOR_READS".to_string(),
+        "false".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -629,21 +608,11 @@ async fn memory_runtime_rejects_config_reads_when_config_registry_disabled_over_
     let port = probe.local_addr().unwrap().port();
     drop(probe);
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), port.to_string()),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_CONFIG_REGISTRY_ENABLED".to_string(),
-            "false".to_string(),
-        ),
-    ]);
+    let mut env = surface_bind_env(port, port);
+    env.insert(
+        "SDKWORK_DISCOVERY_CONFIG_REGISTRY_ENABLED".to_string(),
+        "false".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -762,7 +731,7 @@ async fn sqlite_backed_config_watch_streams_updates_published_by_another_runtime
     let event = timeout(Duration::from_secs(3), async {
         loop {
             let event = stream.message().await.unwrap().unwrap();
-            if event.event_type == "heartbeat" {
+            if event.event_type == common_proto::WatchEventType::Heartbeat as i32 {
                 continue;
             }
             return event;
@@ -773,7 +742,10 @@ async fn sqlite_backed_config_watch_streams_updates_published_by_another_runtime
     watch_server.shutdown().await;
     publish_server.shutdown().await;
 
-    assert_eq!(event.event_type, "config_published");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::ConfigPublished as i32
+    );
     assert_eq!(event.group, "runtime");
     assert_eq!(event.key, "log.level");
     assert_eq!(event.metadata.unwrap().revision, 1);
@@ -837,7 +809,7 @@ async fn sqlite_backed_service_watch_streams_instances_registered_by_another_run
     let event = timeout(Duration::from_secs(3), async {
         loop {
             let event = stream.message().await.unwrap().unwrap();
-            if event.event_type == "heartbeat" {
+            if event.event_type == common_proto::WatchEventType::Heartbeat as i32 {
                 continue;
             }
             return event;
@@ -848,7 +820,10 @@ async fn sqlite_backed_service_watch_streams_instances_registered_by_another_run
     watch_server.shutdown().await;
     register_server.shutdown().await;
 
-    assert_eq!(event.event_type, "instance_registered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     assert_eq!(event.metadata.as_ref().unwrap().revision, 1);
     let instance = event
         .instance
@@ -861,21 +836,19 @@ async fn sqlite_backed_service_watch_streams_instances_registered_by_another_run
 
 #[tokio::test]
 async fn runtime_rejects_missing_tls_certificate_files_before_binding_grpc() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_RPC_TLS_ENABLED".to_string(),
-            "true".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVER_TLS_CERT_FILE".to_string(),
-            "target/test-missing/sdkwork-discovery/server.crt".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVER_TLS_KEY_FILE".to_string(),
-            "target/test-missing/sdkwork-discovery/server.key".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
-    ]);
+    let mut env = public_surface_bind_env(0);
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_TLS_ENABLED".to_string(),
+        "true".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVER_TLS_CERT_FILE".to_string(),
+        "target/test-missing/sdkwork-discovery/server.crt".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVER_TLS_KEY_FILE".to_string(),
+        "target/test-missing/sdkwork-discovery/server.key".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -905,25 +878,23 @@ async fn runtime_rejects_missing_mtls_client_ca_file_before_binding_grpc() {
     std::fs::write(&server_cert_file, "placeholder certificate").unwrap();
     std::fs::write(&server_key_file, "placeholder private key").unwrap();
 
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_RPC_MTLS_ENABLED".to_string(),
-            "true".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVER_TLS_CERT_FILE".to_string(),
-            server_cert_file,
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_SERVER_TLS_KEY_FILE".to_string(),
-            server_key_file,
-        ),
-        (
-            "SDKWORK_DISCOVERY_RPC_CLIENT_CA_CERT_FILE".to_string(),
-            "target/test-missing/sdkwork-discovery/client-ca.crt".to_string(),
-        ),
-        ("SDKWORK_DISCOVERY_GRPC_PORT".to_string(), "0".to_string()),
-    ]);
+    let mut env = public_surface_bind_env(0);
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_MTLS_ENABLED".to_string(),
+        "true".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVER_TLS_CERT_FILE".to_string(),
+        server_cert_file,
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_SERVER_TLS_KEY_FILE".to_string(),
+        server_key_file,
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_RPC_CLIENT_CA_CERT_FILE".to_string(),
+        "target/test-missing/sdkwork-discovery/client-ca.crt".to_string(),
+    );
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
         &env,
@@ -952,8 +923,8 @@ fn runtime_env_collection_separates_config_file_from_safe_overlay() {
             "etc/discovery.example.toml".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-            "19190".to_string(),
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+            "127.0.0.1:19190".to_string(),
         ),
         ("UNRELATED".to_string(), "ignored".to_string()),
     ]);
@@ -967,9 +938,9 @@ fn runtime_env_collection_separates_config_file_from_safe_overlay() {
     assert_eq!(
         options
             .env_overlay
-            .get("SDKWORK_DISCOVERY_GRPC_PORT")
+            .get("SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND")
             .unwrap(),
-        "19190"
+        "127.0.0.1:19190"
     );
     assert!(!options
         .env_overlay
@@ -980,8 +951,8 @@ fn runtime_env_collection_separates_config_file_from_safe_overlay() {
 #[test]
 fn runtime_summary_contains_only_safe_operational_fields() {
     let env = BTreeMap::from([(
-        "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-        "19190".to_string(),
+        "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+        "127.0.0.1:19190".to_string(),
     )]);
     let runtime = DiscoveryServiceHostRuntime::from_toml_str_with_env(
         include_str!("../../../etc/discovery.example.toml"),
@@ -1103,36 +1074,24 @@ fn add_verified_service_token_metadata<T>(request: &mut Request<T>) {
 }
 
 fn sqlite_runtime_env(database_file: &std::path::Path, grpc_port: u16) -> BTreeMap<String, String> {
-    BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_GRPC_BIND_HOST".to_string(),
-            "127.0.0.1".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-            grpc_port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT".to_string(),
-            grpc_port.to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
-            "sqlite".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_string(),
-            database_file.to_string_lossy().into_owned(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_SQLITE_MAX_CONNECTIONS".to_string(),
-            "2".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_WATCH_HEARTBEAT_INTERVAL_MS".to_string(),
-            "50".to_string(),
-        ),
-    ])
+    let mut env = surface_bind_env(grpc_port, grpc_port);
+    env.insert(
+        "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
+        "sqlite".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_string(),
+        database_file.to_string_lossy().into_owned(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_STORAGE_SQLITE_MAX_CONNECTIONS".to_string(),
+        "2".to_string(),
+    );
+    env.insert(
+        "SDKWORK_DISCOVERY_WATCH_HEARTBEAT_INTERVAL_MS".to_string(),
+        "50".to_string(),
+    );
+    env
 }
 
 fn sqlite_runtime_config_toml() -> String {
@@ -1177,5 +1136,8 @@ fn register_request() -> RegisterInstanceRequest {
         status: ProtoInstanceStatus::Serving as i32,
         metadata: Default::default(),
         lease_ttl_seconds: 30,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }

@@ -4,6 +4,26 @@ use sdkwork_discovery_config::{
 };
 use std::collections::BTreeMap;
 
+const DEV_SECURITY_BLOCK: &str = r#"[security]
+auth_mode = "service-token"
+tls_enabled = false
+mtls_enabled = false
+allow_unsigned_local_context = true"#;
+
+const PRODUCTION_SIGNED_SECURITY_BLOCK: &str = r#"[security]
+auth_mode = "service-token"
+tls_enabled = true
+mtls_enabled = false
+allow_unsigned_local_context = false
+server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
+server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key"
+
+[security.service_token]
+hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
+issuer = "sdkwork-discovery"
+audience = "sdkwork-discovery-rpc"
+max_token_ttl_seconds = 3600"#;
+
 fn minimal_config(profile: &str, environment: Option<&str>) -> String {
     let environment_line = environment
         .map(|value| format!("environment = \"{value}\"\n"))
@@ -75,6 +95,20 @@ fn dev_profile_normalizes_to_development_environment() {
 fn production_rejects_loopback_bind_and_secret_literals() {
     let mut toml = minimal_config("prod", Some("production"));
     toml = toml.replace("allow_secret_values = false", "allow_secret_values = true");
+    toml = toml.replace(
+        "allow_unsigned_local_context = true",
+        "allow_unsigned_local_context = false",
+    );
+    toml.push_str(
+        r#"
+
+[security.service_token]
+hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
+issuer = "sdkwork-discovery"
+audience = "sdkwork-discovery-rpc"
+max_token_ttl_seconds = 3600
+"#,
+    );
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
 
@@ -282,8 +316,8 @@ max_connections = 16"#,
         "postgres".to_string(),
     );
     env.insert(
-        "SDKWORK_DISCOVERY_GRPC_PORT".to_string(),
-        "19190".to_string(),
+        "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+        "127.0.0.1:19190".to_string(),
     );
 
     let config = DiscoveryRuntimeConfig::from_toml_str_with_env(&toml, &env).unwrap();
@@ -291,6 +325,64 @@ max_connections = 16"#,
     assert_eq!(config.storage.provider, StorageProvider::Postgres);
     assert_eq!(config.server.grpc_port, 19190);
     assert_eq!(config.server.admin_grpc_port, 19091);
+}
+
+#[test]
+fn env_overlay_maps_topology_surface_bind_keys() {
+    let toml = minimal_config("dev", Some("development"));
+    let env = BTreeMap::from([
+        (
+            "SDKWORK_DISCOVERY_HOSTING".to_string(),
+            "self-hosted".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_SERVICE_LAYOUT".to_string(),
+            "unified-process".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_PROFILE_ID".to_string(),
+            "self-hosted.unified-process.development".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
+            "127.0.0.1:19190".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL".to_string(),
+            "grpc://127.0.0.1:19190".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND".to_string(),
+            "127.0.0.1:19192".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL".to_string(),
+            "grpc://127.0.0.1:19192".to_string(),
+        ),
+    ]);
+
+    let config = DiscoveryRuntimeConfig::from_toml_str_with_env(&toml, &env).unwrap();
+
+    assert_eq!(config.server.grpc_bind_host, "127.0.0.1");
+    assert_eq!(config.server.grpc_port, 19190);
+    assert_eq!(config.server.admin_grpc_port, 19192);
+}
+
+#[test]
+fn env_overlay_rejects_retired_grpc_bind_env_keys() {
+    let toml = minimal_config("dev", Some("development"));
+    for (key, value) in [
+        ("SDKWORK_DISCOVERY_GRPC_BIND_HOST", "127.0.0.1"),
+        ("SDKWORK_DISCOVERY_GRPC_PORT", "19190"),
+        ("SDKWORK_DISCOVERY_ADMIN_GRPC_PORT", "19191"),
+    ] {
+        let env = BTreeMap::from([(key.to_string(), value.to_string())]);
+        let error = DiscoveryRuntimeConfig::from_toml_str_with_env(&toml, &env).unwrap_err();
+        assert!(
+            error.to_string().contains("unsupported discovery env key"),
+            "{key} should be rejected: {error}"
+        );
+    }
 }
 
 #[test]
@@ -929,6 +1021,10 @@ fn env_overlay_can_override_registry_runtime_governance_fields() {
             "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_BATCH_SIZE".to_string(),
             "512".to_string(),
         ),
+        (
+            "SDKWORK_DISCOVERY_REGISTRY_HEALTH_CHECK_SCAN_INTERVAL_MS".to_string(),
+            "5000".to_string(),
+        ),
     ]);
 
     let config =
@@ -939,6 +1035,107 @@ fn env_overlay_can_override_registry_runtime_governance_fields() {
     assert_eq!(config.registry.max_lease_ttl_seconds, 600);
     assert_eq!(config.registry.expiry_scan_interval_ms, 1500);
     assert_eq!(config.registry.expiry_scan_batch_size, 512);
+    assert_eq!(config.registry.health_check_scan_interval_ms, 5000);
+}
+
+#[test]
+fn env_overlay_can_override_watch_event_gc_fields() {
+    let env = BTreeMap::from([
+        (
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_INTERVAL_MS".to_string(),
+            "30000".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_RETENTION_COUNT".to_string(),
+            "5000".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_WATCH_EVENT_GC_BATCH_SIZE".to_string(),
+            "256".to_string(),
+        ),
+    ]);
+
+    let config =
+        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
+
+    assert_eq!(config.watch.event_gc_interval_ms, 30_000);
+    assert_eq!(config.watch.event_gc_retention_count, 5_000);
+    assert_eq!(config.watch.event_gc_batch_size, 256);
+}
+
+#[test]
+fn env_overlay_can_override_resilience_fields() {
+    let env = BTreeMap::from([
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_ENABLED".to_string(),
+            "true".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_FAILURE_THRESHOLD".to_string(),
+            "3".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_MS".to_string(),
+            "15000".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_HALF_OPEN_MAX_REQUESTS".to_string(),
+            "2".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_ENABLED".to_string(),
+            "true".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_REQUESTS_PER_SECOND".to_string(),
+            "50".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_BURST_CAPACITY".to_string(),
+            "100".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_READ_ONLY_ON_STORAGE_FAILURE".to_string(),
+            "true".to_string(),
+        ),
+        (
+            "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_STALE_READ_MAX_AGE_MS".to_string(),
+            "120000".to_string(),
+        ),
+    ]);
+
+    let config =
+        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
+
+    assert!(config.resilience.circuit_breaker.enabled);
+    assert_eq!(config.resilience.circuit_breaker.failure_threshold, 3);
+    assert_eq!(
+        config.resilience.circuit_breaker.recovery_timeout_ms,
+        15_000
+    );
+    assert_eq!(config.resilience.circuit_breaker.half_open_max_requests, 2);
+    assert!(config.resilience.rate_limit.enabled);
+    assert_eq!(config.resilience.rate_limit.requests_per_second, 50);
+    assert_eq!(config.resilience.rate_limit.burst_capacity, 100);
+    assert!(config.resilience.degradation.read_only_on_storage_failure);
+    assert_eq!(config.resilience.degradation.stale_read_max_age_ms, 120_000);
+}
+
+#[test]
+fn enabled_resilience_rate_limit_rejects_zero_burst_capacity() {
+    let mut toml = minimal_config("dev", None);
+    toml.push_str(
+        r#"
+
+[resilience.rate_limit]
+enabled = true
+requests_per_second = 100
+burst_capacity = 0
+"#,
+    );
+
+    let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
+    assert!(error.to_string().to_lowercase().contains("burst capacity"));
 }
 
 #[test]
@@ -1003,6 +1200,32 @@ fn env_overlay_rejects_runtime_credential_values() {
         .unwrap_err();
 
     assert!(error.to_string().contains("credential"));
+}
+
+#[test]
+fn durable_storage_rejects_non_primary_registry_role() {
+    let toml = minimal_config("dev", None).replace(
+        r#"[storage]
+provider = "memory""#,
+        r#"[storage]
+provider = "postgres"
+registry_role = "cache"
+config_role = "primary"
+watch_role = "primary"
+
+[storage.postgres]
+host = "127.0.0.1"
+port = 5432
+database = "sdkwork_discovery"
+username = "sdkwork_discovery"
+password_file = "/run/secrets/sdkwork/discovery/postgres-password"
+tls_enabled = false
+connect_timeout_ms = 3000
+max_connections = 16"#,
+    );
+
+    let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
+    assert!(error.to_string().contains("registry_role"));
 }
 
 #[test]
@@ -1114,20 +1337,7 @@ fn production_rejects_automatic_initial_schema_application() {
             r#"grpc_bind_host = "127.0.0.1""#,
             r#"grpc_bind_host = "0.0.0.0""#,
         )
-        .replace(
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = false
-mtls_enabled = false
-allow_unsigned_local_context = true"#,
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = true
-mtls_enabled = false
-allow_unsigned_local_context = true
-server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
-server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key""#,
-        )
+        .replace(DEV_SECURITY_BLOCK, PRODUCTION_SIGNED_SECURITY_BLOCK)
         .replace(
             r#"[storage]
 provider = "memory""#,
@@ -1184,20 +1394,7 @@ fn production_rejects_memory_storage_provider() {
         r#"grpc_bind_host = "0.0.0.0""#,
     );
     toml = toml.replace("enable_reflection = true", "enable_reflection = false");
-    toml = toml.replace(
-        r#"[security]
-auth_mode = "service-token"
-tls_enabled = false
-mtls_enabled = false
-allow_unsigned_local_context = true"#,
-        r#"[security]
-auth_mode = "service-token"
-tls_enabled = true
-mtls_enabled = false
-allow_unsigned_local_context = true
-server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
-server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key""#,
-    );
+    toml = toml.replace(DEV_SECURITY_BLOCK, PRODUCTION_SIGNED_SECURITY_BLOCK);
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
 
@@ -1213,20 +1410,7 @@ fn production_rejects_sqlite_storage_provider() {
             r#"grpc_bind_host = "0.0.0.0""#,
         )
         .replace("enable_reflection = true", "enable_reflection = false")
-        .replace(
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = false
-mtls_enabled = false
-allow_unsigned_local_context = true"#,
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = true
-mtls_enabled = false
-allow_unsigned_local_context = true
-server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
-server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key""#,
-        )
+        .replace(DEV_SECURITY_BLOCK, PRODUCTION_SIGNED_SECURITY_BLOCK)
         .replace(
             r#"[storage]
 provider = "memory""#,
@@ -1251,20 +1435,7 @@ fn production_rejects_enabled_rpc_reflection_without_access_control() {
             r#"grpc_bind_host = "127.0.0.1""#,
             r#"grpc_bind_host = "0.0.0.0""#,
         )
-        .replace(
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = false
-mtls_enabled = false
-allow_unsigned_local_context = true"#,
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = true
-mtls_enabled = false
-allow_unsigned_local_context = true
-server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
-server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key""#,
-        )
+        .replace(DEV_SECURITY_BLOCK, PRODUCTION_SIGNED_SECURITY_BLOCK)
         .replace(
             r#"[storage]
 provider = "memory""#,
@@ -1296,16 +1467,18 @@ fn production_rejects_tls_enabled_without_server_certificate_files() {
             r#"grpc_bind_host = "0.0.0.0""#,
         )
         .replace(
-            r#"[security]
-auth_mode = "service-token"
-tls_enabled = false
-mtls_enabled = false
-allow_unsigned_local_context = true"#,
+            DEV_SECURITY_BLOCK,
             r#"[security]
 auth_mode = "service-token"
 tls_enabled = true
 mtls_enabled = false
-allow_unsigned_local_context = true"#,
+allow_unsigned_local_context = false
+
+[security.service_token]
+hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
+issuer = "sdkwork-discovery"
+audience = "sdkwork-discovery-rpc"
+max_token_ttl_seconds = 3600"#,
         )
         .replace(
             r#"[storage]
@@ -1336,9 +1509,15 @@ fn mtls_requires_client_ca_certificate_file_reference() {
         .replace("mtls_enabled = false", "mtls_enabled = true")
         .replace(
             "allow_unsigned_local_context = true",
-            r#"allow_unsigned_local_context = true
+            r#"allow_unsigned_local_context = false
 server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
-server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key""#,
+server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key"
+
+[security.service_token]
+hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
+issuer = "sdkwork-discovery"
+audience = "sdkwork-discovery-rpc"
+max_token_ttl_seconds = 3600"#,
         );
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();

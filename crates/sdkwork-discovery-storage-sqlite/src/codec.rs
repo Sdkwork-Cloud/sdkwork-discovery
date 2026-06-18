@@ -136,6 +136,25 @@ pub(crate) fn metadata_to_json(metadata: &HashMap<String, String>) -> DiscoveryR
         .map_err(|error| DiscoveryError::InvalidArgument(format!("invalid metadata: {error}")))
 }
 
+pub(crate) fn health_check_to_json(
+    health_check: &Option<sdkwork_discovery_contract::HealthCheckConfig>,
+) -> DiscoveryResult<Option<String>> {
+    match health_check {
+        None => Ok(None),
+        Some(config) => serde_json::to_string(config).map(Some).map_err(|error| {
+            DiscoveryError::InvalidArgument(format!("invalid health_check config: {error}"))
+        }),
+    }
+}
+
+pub(crate) fn health_check_state_to_json(
+    state: &sdkwork_discovery_contract::HealthCheckRuntimeState,
+) -> DiscoveryResult<String> {
+    serde_json::to_string(state).map_err(|error| {
+        DiscoveryError::InvalidArgument(format!("invalid health_check_state: {error}"))
+    })
+}
+
 fn metadata_from_json(input: &str) -> DiscoveryResult<HashMap<String, String>> {
     serde_json::from_str(input).map_err(|error| {
         DiscoveryError::InvalidConfig(format!("sqlite stored invalid metadata json: {error}"))
@@ -171,6 +190,42 @@ pub(crate) fn service_instance_from_row(row: &SqliteRow) -> DiscoveryResult<Serv
         lease_id: row.try_get("lease_id").map_err(sqlx_error)?,
         expires_at_ms: i64_to_u64("expires_at_ms", expires_at_ms)?,
         revision: i64_to_u64("revision", revision)?,
+        health_check: health_check_from_json_text(
+            row.try_get::<Option<String>, _>("health_check_json_text")
+                .ok()
+                .flatten()
+                .as_deref(),
+        )?,
+        health_check_state: health_check_state_from_json_text(
+            row.try_get::<Option<String>, _>("health_check_state_json_text")
+                .ok()
+                .flatten()
+                .as_deref(),
+        )?,
+    })
+}
+
+fn health_check_from_json_text(
+    input: Option<&str>,
+) -> DiscoveryResult<Option<sdkwork_discovery_contract::HealthCheckConfig>> {
+    let Some(input) = input.filter(|value| !value.is_empty()) else {
+        return Ok(None);
+    };
+    serde_json::from_str(input).map_err(|error| {
+        DiscoveryError::InvalidConfig(format!("sqlite stored invalid health_check json: {error}"))
+    })
+}
+
+fn health_check_state_from_json_text(
+    input: Option<&str>,
+) -> DiscoveryResult<sdkwork_discovery_contract::HealthCheckRuntimeState> {
+    let Some(input) = input.filter(|value| !value.is_empty()) else {
+        return Ok(sdkwork_discovery_contract::HealthCheckRuntimeState::default());
+    };
+    serde_json::from_str(input).map_err(|error| {
+        DiscoveryError::InvalidConfig(format!(
+            "sqlite stored invalid health_check_state json: {error}"
+        ))
     })
 }
 

@@ -53,6 +53,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -69,6 +71,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -85,6 +89,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     service_name: " ".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -212,6 +218,8 @@ async fn postgres_discover_instances_rejects_blank_optional_protocol_filter_befo
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some(" ".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -515,5 +523,8 @@ fn register_command(instance_id: &str, endpoint: &str, now_ms: u64) -> RegisterI
             .collect(),
         lease_ttl_seconds: 30,
         now_ms,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }

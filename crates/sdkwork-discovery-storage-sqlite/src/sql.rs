@@ -14,7 +14,7 @@ RETURNING current_revision
 "#;
 
 pub const SELECT_EXISTING_INSTANCE_LEASE: &str = r#"
-SELECT lease_id
+SELECT lease_id, revision
 FROM discovery_service_instance
 WHERE namespace = ?
   AND environment = ?
@@ -42,10 +42,12 @@ INSERT INTO discovery_service_instance (
     metadata_json,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json,
+    health_check_state_json
 ) VALUES (
     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-    ?, ?, ?, ?, ?, ?, ?
+    ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 ON CONFLICT (namespace, environment, service_name, instance_id)
 DO UPDATE SET
@@ -61,6 +63,8 @@ DO UPDATE SET
     lease_id = excluded.lease_id,
     expires_at_ms = excluded.expires_at_ms,
     revision = excluded.revision,
+    health_check_json = excluded.health_check_json,
+    health_check_state_json = excluded.health_check_state_json,
     updated_at = CURRENT_TIMESTAMP,
     version = discovery_service_instance.version + 1,
     deleted_at = NULL
@@ -95,7 +99,7 @@ RETURNING status, revision
 "#;
 
 pub const SELECT_ACTIVE_INSTANCE_FOR_STATUS: &str = r#"
-SELECT 1
+SELECT revision
 FROM discovery_service_instance
 WHERE namespace = ?
   AND environment = ?
@@ -172,7 +176,9 @@ SELECT
     metadata_json AS metadata_json_text,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json AS health_check_json_text,
+    health_check_state_json AS health_check_state_json_text
 FROM discovery_service_instance
 WHERE namespace = ?
   AND environment = ?
@@ -182,6 +188,44 @@ WHERE namespace = ?
   AND (? IS NULL OR protocol = ?)
   AND (? = 0 OR status IN ('serving', 'degraded'))
 ORDER BY instance_id ASC
+"#;
+
+pub const LIST_HEALTH_CHECK_INSTANCES: &str = r#"
+SELECT
+    namespace,
+    environment,
+    service_name,
+    instance_id,
+    endpoint,
+    protocol,
+    service_version,
+    region,
+    zone,
+    weight,
+    priority,
+    status,
+    metadata_json AS metadata_json_text,
+    lease_id,
+    expires_at_ms,
+    revision,
+    health_check_json AS health_check_json_text,
+    health_check_state_json AS health_check_state_json_text
+FROM discovery_service_instance
+WHERE deleted_at IS NULL
+  AND expires_at_ms > ?
+  AND health_check_json IS NOT NULL
+"#;
+
+pub const UPDATE_HEALTH_CHECK_STATE: &str = r#"
+UPDATE discovery_service_instance
+SET health_check_state_json = ?,
+    updated_at = CURRENT_TIMESTAMP,
+    version = version + 1
+WHERE namespace = ?
+  AND environment = ?
+  AND service_name = ?
+  AND instance_id = ?
+  AND deleted_at IS NULL
 "#;
 
 pub const RETRIEVE_INSTANCE: &str = r#"
@@ -201,7 +245,9 @@ SELECT
     metadata_json AS metadata_json_text,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json AS health_check_json_text,
+    health_check_state_json AS health_check_state_json_text
 FROM discovery_service_instance
 WHERE namespace = ?
   AND environment = ?
@@ -457,4 +503,39 @@ WHERE event.namespace = ?
   AND event.deleted_at IS NULL
 ORDER BY event.revision ASC
 LIMIT ?
+"#;
+
+pub const GC_WATCH_EVENTS: &str = r#"
+DELETE FROM discovery_watch_event
+WHERE revision IN (
+    SELECT revision FROM discovery_watch_event
+    WHERE revision <= ?
+      AND deleted_at IS NULL
+    ORDER BY revision ASC
+    LIMIT ?
+)
+"#;
+
+pub const SELECT_CURRENT_REVISION: &str = r#"
+SELECT COALESCE(MAX(current_revision), 0) AS current_revision
+FROM discovery_revision_counter
+"#;
+
+pub const COMPACT_WATCH_EVENTS: &str = r#"
+DELETE FROM discovery_watch_event
+WHERE revision NOT IN (
+    SELECT revision FROM (
+        SELECT revision, ROW_NUMBER() OVER (
+            PARTITION BY resource_id ORDER BY revision DESC
+        ) as rn
+        FROM discovery_watch_event
+        WHERE namespace = ?
+          AND environment = ?
+          AND deleted_at IS NULL
+    ) ranked
+    WHERE rn <= ?
+)
+AND namespace = ?
+AND environment = ?
+AND deleted_at IS NULL
 "#;

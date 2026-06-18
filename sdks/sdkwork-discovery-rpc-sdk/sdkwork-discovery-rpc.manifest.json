@@ -14,54 +14,13 @@
       "surface": "internal",
       "owner": "sdkwork-platform",
       "methods": [
-        {
-          "method": "RegisterInstance",
-          "operationId": "discovery.registry.instances.register",
-          "auth": "service-identity",
-          "idempotency": "natural",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "RenewLease",
-          "operationId": "discovery.registry.leases.renew",
-          "auth": "service-identity",
-          "idempotency": "natural",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "DeregisterInstance",
-          "operationId": "discovery.registry.instances.deregister",
-          "auth": "service-identity",
-          "idempotency": "natural",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "ReportInstanceStatus",
-          "operationId": "discovery.registry.instances.status.report",
-          "auth": "service-identity",
-          "idempotency": "natural",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "RetrieveInstance",
-          "operationId": "discovery.registry.instances.retrieve",
-          "auth": "service-identity",
-          "idempotency": "none",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "DiscoverInstances",
-          "operationId": "discovery.registry.instances.discover",
-          "auth": "service-identity",
-          "idempotency": "none",
-          "streaming": "unary",
-          "compatibility": "stable"
-        }
+        { "method": "RegisterInstance", "operationId": "discovery.registry.instances.register", "auth": "service-identity", "idempotency": "optional", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "BatchRegisterInstances", "operationId": "discovery.registry.instances.batch_register", "auth": "service-identity", "idempotency": "optional", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "RenewLease", "operationId": "discovery.registry.leases.renew", "auth": "service-identity", "idempotency": "optional", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "DeregisterInstance", "operationId": "discovery.registry.instances.deregister", "auth": "service-identity", "idempotency": "optional", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "ReportInstanceStatus", "operationId": "discovery.registry.instances.status.report", "auth": "service-identity", "idempotency": "optional", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "RetrieveInstance", "operationId": "discovery.registry.instances.retrieve", "auth": "service-identity", "idempotency": "none", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "DiscoverInstances", "operationId": "discovery.registry.instances.discover", "auth": "service-identity", "idempotency": "none", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" }
       ]
     },
     {
@@ -70,22 +29,8 @@
       "surface": "internal",
       "owner": "sdkwork-platform",
       "methods": [
-        {
-          "method": "RetrieveEffectiveConfig",
-          "operationId": "discovery.config.effective.retrieve",
-          "auth": "service-identity",
-          "idempotency": "none",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "WatchConfig",
-          "operationId": "discovery.config.releases.watch",
-          "auth": "service-identity",
-          "idempotency": "none",
-          "streaming": "server",
-          "compatibility": "stable"
-        }
+        { "method": "RetrieveEffectiveConfig", "operationId": "discovery.config.effective.retrieve", "auth": "service-identity", "idempotency": "none", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "WatchConfig", "operationId": "discovery.config.releases.watch", "auth": "service-identity", "idempotency": "none", "streaming": "server", "owner": "sdkwork-platform", "compatibility": "stable" }
       ]
     },
     {
@@ -94,14 +39,7 @@
       "surface": "internal",
       "owner": "sdkwork-platform",
       "methods": [
-        {
-          "method": "WatchService",
-          "operationId": "discovery.registry.services.watch",
-          "auth": "service-identity",
-          "idempotency": "none",
-          "streaming": "server",
-          "compatibility": "stable"
-        }
+        { "method": "WatchService", "operationId": "discovery.registry.services.watch", "auth": "service-identity", "idempotency": "none", "streaming": "server", "owner": "sdkwork-platform", "compatibility": "stable" }
       ]
     },
     {
@@ -110,38 +48,10 @@
       "surface": "backend",
       "owner": "sdkwork-platform",
       "methods": [
-        {
-          "method": "CreateConfigDraft",
-          "operationId": "discovery.config.drafts.create",
-          "auth": "backend-operator",
-          "idempotency": "required",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "PublishConfig",
-          "operationId": "discovery.config.releases.publish",
-          "auth": "backend-operator",
-          "idempotency": "required",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "RollbackConfig",
-          "operationId": "discovery.config.releases.rollback",
-          "auth": "backend-operator",
-          "idempotency": "required",
-          "streaming": "unary",
-          "compatibility": "stable"
-        },
-        {
-          "method": "ListServices",
-          "operationId": "discovery.registry.services.list",
-          "auth": "backend-operator",
-          "idempotency": "none",
-          "streaming": "unary",
-          "compatibility": "stable"
-        }
+        { "method": "CreateConfigDraft", "operationId": "discovery.config.drafts.create", "auth": "backend-operator", "idempotency": "required", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "PublishConfig", "operationId": "discovery.config.releases.publish", "auth": "backend-operator", "idempotency": "required", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "RollbackConfig", "operationId": "discovery.config.releases.rollback", "auth": "backend-operator", "idempotency": "required", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" },
+        { "method": "ListServices", "operationId": "discovery.registry.services.list", "auth": "backend-operator", "idempotency": "none", "streaming": "unary", "owner": "sdkwork-platform", "compatibility": "stable" }
       ]
     }
   ]

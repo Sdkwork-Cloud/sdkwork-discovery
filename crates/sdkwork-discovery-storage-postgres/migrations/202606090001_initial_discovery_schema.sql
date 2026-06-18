@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS discovery_service_instance (
     lease_id VARCHAR(128) NOT NULL,
     expires_at_ms BIGINT NOT NULL,
     revision BIGINT NOT NULL,
+    health_check_json JSONB,
+    health_check_state_json JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     version BIGINT NOT NULL DEFAULT 0,

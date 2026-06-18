@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  - remote: buf.build/community/neoeinstein-prost
+    out: generated/proto
+  - remote: buf.build/community/neoeinstein-tonic
+    out: generated/proto

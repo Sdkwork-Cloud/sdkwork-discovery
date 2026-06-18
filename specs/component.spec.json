@@ -106,13 +106,29 @@
       "crates/sdkwork-discovery-storage-memory",
       "crates/sdkwork-discovery-storage-postgres",
       "crates/sdkwork-discovery-storage-sqlite",
-      "crates/sdkwork-discovery-core"
+      "crates/sdkwork-discovery-core",
+      "crates/sdkwork-discovery-health-checker",
+      "crates/sdkwork-discovery-rpc"
     ],
     "runtimeEntrypoints": [
       "services/sdkwork-discovery-service-host"
     ],
     "routeManifest": null,
-    "sdkClients": [],
+    "sdkClients": [
+      {
+        "family": "sdkwork-discovery-rpc-sdk",
+        "manifest": "sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc.manifest.json",
+        "languages": [
+          "rust",
+          "typescript"
+        ],
+        "workspaces": [
+          "sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust",
+          "sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript"
+        ],
+        "status": "generated"
+      }
+    ],
     "sdkDependencies": [],
     "dependencyApiExports": [],
     "dependencyApiSurfaces": [],
@@ -122,13 +138,17 @@
     ],
     "configKeys": [
       "SDKWORK_DISCOVERY_CONFIG_FILE",
+      "SDKWORK_DISCOVERY_HOSTING",
+      "SDKWORK_DISCOVERY_SERVICE_LAYOUT",
+      "SDKWORK_DISCOVERY_PROFILE_ID",
+      "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND",
+      "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL",
+      "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND",
+      "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL",
       "SDKWORK_DISCOVERY_ENVIRONMENT",
       "SDKWORK_DISCOVERY_CONFIG_PROFILE",
       "SDKWORK_DISCOVERY_DEPLOYMENT_MODE",
       "SDKWORK_DISCOVERY_RUNTIME_TARGET",
-      "SDKWORK_DISCOVERY_GRPC_BIND_HOST",
-      "SDKWORK_DISCOVERY_GRPC_PORT",
-      "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT",
       "SDKWORK_DISCOVERY_STORAGE_PROVIDER",
       "SDKWORK_DISCOVERY_DATABASE_ENGINE",
       "SDKWORK_DISCOVERY_DATABASE_HOST",
@@ -186,12 +206,25 @@
       "SDKWORK_DISCOVERY_REGISTRY_MAX_LEASE_TTL_SECONDS",
       "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_INTERVAL_MS",
       "SDKWORK_DISCOVERY_REGISTRY_EXPIRY_SCAN_BATCH_SIZE",
+      "SDKWORK_DISCOVERY_REGISTRY_HEALTH_CHECK_SCAN_INTERVAL_MS",
       "SDKWORK_DISCOVERY_WATCH_ENABLED",
       "SDKWORK_DISCOVERY_WATCH_MAX_STREAMS",
       "SDKWORK_DISCOVERY_WATCH_EVENT_BUFFER_SIZE",
       "SDKWORK_DISCOVERY_WATCH_HEARTBEAT_INTERVAL_MS",
       "SDKWORK_DISCOVERY_WATCH_DURABLE_POLL_INTERVAL_MS",
       "SDKWORK_DISCOVERY_WATCH_DURABLE_REPLAY_BATCH_SIZE",
+      "SDKWORK_DISCOVERY_WATCH_EVENT_GC_INTERVAL_MS",
+      "SDKWORK_DISCOVERY_WATCH_EVENT_GC_RETENTION_COUNT",
+      "SDKWORK_DISCOVERY_WATCH_EVENT_GC_BATCH_SIZE",
+      "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_ENABLED",
+      "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_FAILURE_THRESHOLD",
+      "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_MS",
+      "SDKWORK_DISCOVERY_RESILIENCE_CIRCUIT_BREAKER_HALF_OPEN_MAX_REQUESTS",
+      "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_ENABLED",
+      "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_REQUESTS_PER_SECOND",
+      "SDKWORK_DISCOVERY_RESILIENCE_RATE_LIMIT_BURST_CAPACITY",
+      "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_READ_ONLY_ON_STORAGE_FAILURE",
+      "SDKWORK_DISCOVERY_RESILIENCE_DEGRADATION_STALE_READ_MAX_AGE_MS",
       "SDKWORK_DISCOVERY_RPC_AUTH_MODE",
       "SDKWORK_DISCOVERY_RPC_ALLOW_UNSIGNED_LOCAL_CONTEXT",
       "SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_HMAC_SECRET_FILE",
@@ -212,7 +245,13 @@
     "commands": [
       "cargo fmt --all -- --check",
       "cargo test --workspace",
+      "pnpm.cmd test:topology-validate",
+      "pnpm.cmd topology:validate",
+      "pnpm.cmd topology:matrix",
+      "pnpm.cmd test:topology-baggage",
       "pnpm.cmd verify",
+      "pnpm.cmd run verify:sdk-rust",
+      "pnpm.cmd run verify:sdk-typescript",
       "cargo clippy --workspace --all-targets -- -D warnings"
     ]
   },

@@ -244,6 +244,60 @@ where
         fields(
             package = "sdkwork.discovery.internal.v1",
             service = "RegistryService",
+            method = "BatchRegisterInstances",
+            operation_id = "discovery.registry.instances.batch_register",
+            api_surface = "rpc"
+        )
+    )]
+    async fn batch_register_instances(
+        &self,
+        request: Request<internal_proto::BatchRegisterInstancesRequest>,
+    ) -> Result<Response<internal_proto::BatchRegisterInstancesResponse>, Status> {
+        let metrics = RpcMetrics::new(
+            "sdkwork.discovery.internal.v1",
+            "RegistryService",
+            "BatchRegisterInstances",
+            "discovery.registry.instances.batch_register",
+        );
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id =
+            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
+            .map_err(|e| {
+                record_auth_failure(
+                    "sdkwork.discovery.internal.v1",
+                    "RegistryService",
+                    "BatchRegisterInstances",
+                );
+                map_discovery_error_to_status(e)
+            })?;
+        let commands =
+            codec::batch_register_instances_commands(request.into_inner(), codec::now_millis())
+                .map_err(map_discovery_error_to_status)?;
+        match self
+            .runtime
+            .batch_register_instances(caller, commands)
+            .await
+        {
+            Ok(result) => {
+                metrics.record_success("OK");
+                Ok(Response::new(codec::batch_register_instances_response(
+                    result, request_id, trace_id,
+                )))
+            }
+            Err(error) => {
+                metrics.record_error("INTERNAL", error.kind_string());
+                Err(map_discovery_error_to_status(error))
+            }
+        }
+    }
+
+    #[instrument(
+        skip(self, request),
+        fields(
+            package = "sdkwork.discovery.internal.v1",
+            service = "RegistryService",
             method = "RenewLease",
             operation_id = "discovery.registry.leases.renew",
             api_surface = "rpc"
@@ -1688,6 +1742,7 @@ fn service_watch_identity_tombstone(event: &DiscoveryEvent) -> common_proto::Ser
         lease_id: String::new(),
         expires_at: None,
         revision: event.revision,
+        health_check: None,
     }
 }
 
@@ -1697,7 +1752,7 @@ fn service_watch_heartbeat(
     trace_id: &str,
 ) -> internal_proto::WatchServiceResponse {
     internal_proto::WatchServiceResponse {
-        event_type: "heartbeat".to_string(),
+        event_type: common_proto::WatchEventType::Heartbeat as i32,
         instance: None,
         metadata: Some(codec::response_metadata(
             revision,
@@ -1731,7 +1786,7 @@ fn config_watch_heartbeat(
     trace_id: &str,
 ) -> internal_proto::WatchConfigResponse {
     internal_proto::WatchConfigResponse {
-        event_type: "heartbeat".to_string(),
+        event_type: common_proto::WatchEventType::Heartbeat as i32,
         release_id: String::new(),
         group: String::new(),
         key: String::new(),

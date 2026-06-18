@@ -1,5 +1,7 @@
 /target/
 **/target/
+sdks/**/generated/
+sdks/**/node_modules/
 /target-codex-test/
 /.env
 /.env.*

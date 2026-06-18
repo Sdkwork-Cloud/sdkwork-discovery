@@ -11,6 +11,8 @@ pub enum DiscoveryError {
     AlreadyPublished(String),
     PermissionDenied(String),
     PolicyViolation(String),
+    Conflict(String),
+    Unavailable(String),
 }
 
 impl DiscoveryError {
@@ -23,6 +25,8 @@ impl DiscoveryError {
             Self::AlreadyPublished(_) => "already_published",
             Self::PermissionDenied(_) => "permission_denied",
             Self::PolicyViolation(_) => "policy_violation",
+            Self::Conflict(_) => "conflict",
+            Self::Unavailable(_) => "unavailable",
         }
     }
 }
@@ -37,6 +41,8 @@ impl Display for DiscoveryError {
             Self::AlreadyPublished(message) => write!(formatter, "already published: {message}"),
             Self::PermissionDenied(message) => write!(formatter, "permission denied: {message}"),
             Self::PolicyViolation(message) => write!(formatter, "policy violation: {message}"),
+            Self::Conflict(message) => write!(formatter, "conflict: {message}"),
+            Self::Unavailable(message) => write!(formatter, "unavailable: {message}"),
         }
     }
 }

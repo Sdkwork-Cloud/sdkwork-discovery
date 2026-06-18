@@ -17,6 +17,8 @@ pub enum ConfigPermission {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallerContext {
     pub subject_id: String,
+    pub tenant_id: Option<String>,
+    pub organization_id: Option<String>,
     registry_permissions: Vec<RegistryPermission>,
     config_permissions: Vec<ConfigPermission>,
 }
@@ -25,9 +27,27 @@ impl CallerContext {
     pub fn new(subject_id: impl Into<String>) -> Self {
         Self {
             subject_id: subject_id.into(),
+            tenant_id: None,
+            organization_id: None,
             registry_permissions: Vec::new(),
             config_permissions: Vec::new(),
         }
+    }
+
+    pub fn with_tenant_id(mut self, tenant_id: impl Into<String>) -> Self {
+        let tenant_id = tenant_id.into();
+        if !tenant_id.trim().is_empty() {
+            self.tenant_id = Some(tenant_id);
+        }
+        self
+    }
+
+    pub fn with_organization_id(mut self, organization_id: impl Into<String>) -> Self {
+        let organization_id = organization_id.into();
+        if !organization_id.trim().is_empty() {
+            self.organization_id = Some(organization_id);
+        }
+        self
     }
 
     pub fn with_registry_permission(mut self, permission: RegistryPermission) -> Self {

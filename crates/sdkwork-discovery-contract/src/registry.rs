@@ -30,6 +30,9 @@ pub struct RegisterInstanceCommand {
     pub metadata: HashMap<String, String>,
     pub lease_ttl_seconds: u64,
     pub now_ms: u64,
+    pub expected_revision: Option<u64>,
+    pub persistent: bool,
+    pub health_check: Option<crate::health_check::HealthCheckConfig>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,6 +47,19 @@ pub struct RegisterInstanceResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchRegisterResult {
+    pub results: Vec<RegisterInstanceResult>,
+    pub errors: Vec<BatchOperationError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BatchOperationError {
+    pub index: usize,
+    pub error_code: String,
+    pub error_message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReportInstanceStatusCommand {
     pub namespace: String,
     pub environment: String,
@@ -51,6 +67,7 @@ pub struct ReportInstanceStatusCommand {
     pub instance_id: String,
     pub status: InstanceStatus,
     pub now_ms: u64,
+    pub expected_revision: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,6 +111,47 @@ pub struct DiscoverInstancesQuery {
     pub service_name: String,
     pub healthy_only: bool,
     pub protocol: Option<String>,
+    pub label_filters: Vec<LabelFilter>,
+    pub sort_by: Option<DiscoverSortBy>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiscoverSortBy {
+    InstanceId,
+    Priority,
+    Weight,
+    WeightedRandom,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelFilter {
+    pub key: String,
+    pub op: LabelFilterOp,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LabelFilterOp {
+    Eq,
+    NotEq,
+    In,
+    Exists,
+}
+
+impl LabelFilter {
+    pub fn matches(&self, metadata: &HashMap<String, String>) -> bool {
+        match &self.op {
+            LabelFilterOp::Eq => metadata.get(&self.key) == Some(&self.value),
+            LabelFilterOp::NotEq => metadata.get(&self.key) != Some(&self.value),
+            LabelFilterOp::In => {
+                let values: Vec<&str> = self.value.split(',').collect();
+                metadata
+                    .get(&self.key)
+                    .is_some_and(|v| values.contains(&v.as_str()))
+            }
+            LabelFilterOp::Exists => metadata.contains_key(&self.key),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -108,6 +166,95 @@ pub struct RetrieveInstanceQuery {
 pub struct DiscoverInstancesResult {
     pub revision: u64,
     pub instances: Vec<ServiceInstance>,
+}
+
+/// Applies label filters and sort order after storage retrieval so all backends behave consistently.
+pub fn finalize_discover_instances(
+    mut instances: Vec<ServiceInstance>,
+    query: &DiscoverInstancesQuery,
+    revision: u64,
+) -> DiscoverInstancesResult {
+    instances.retain(|instance| {
+        query
+            .label_filters
+            .iter()
+            .all(|filter| filter.matches(&instance.metadata))
+    });
+
+    match query
+        .sort_by
+        .as_ref()
+        .copied()
+        .unwrap_or(DiscoverSortBy::InstanceId)
+    {
+        DiscoverSortBy::InstanceId => {
+            instances.sort_by(|a, b| a.instance_id.cmp(&b.instance_id));
+        }
+        DiscoverSortBy::Priority => {
+            instances.sort_by(|a, b| {
+                a.priority
+                    .cmp(&b.priority)
+                    .then_with(|| b.weight.cmp(&a.weight))
+                    .then_with(|| a.instance_id.cmp(&b.instance_id))
+            });
+        }
+        DiscoverSortBy::Weight => {
+            instances.sort_by(|a, b| {
+                b.weight
+                    .cmp(&a.weight)
+                    .then_with(|| a.instance_id.cmp(&b.instance_id))
+            });
+        }
+        DiscoverSortBy::WeightedRandom => {
+            instances.sort_by(|a, b| a.priority.cmp(&b.priority));
+            weighted_shuffle_discover_instances(&mut instances);
+        }
+    }
+
+    DiscoverInstancesResult {
+        revision,
+        instances,
+    }
+}
+
+fn weighted_shuffle_discover_instances(instances: &mut Vec<ServiceInstance>) {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let total_weight: u64 = instances.iter().map(|i| i.weight as u64).sum();
+    if total_weight == 0 {
+        return;
+    }
+
+    let mut result = Vec::with_capacity(instances.len());
+    let mut remaining = std::mem::take(instances);
+
+    while !remaining.is_empty() {
+        let current_weight: u64 = remaining.iter().map(|i| i.weight as u64).sum();
+        if current_weight == 0 {
+            result.append(&mut remaining);
+            break;
+        }
+
+        let mut hasher = DefaultHasher::new();
+        remaining.len().hash(&mut hasher);
+        result.len().hash(&mut hasher);
+        let target = hasher.finish() % current_weight;
+
+        let mut cumulative = 0u64;
+        let mut selected_idx = 0;
+        for (idx, instance) in remaining.iter().enumerate() {
+            cumulative += instance.weight as u64;
+            if cumulative > target {
+                selected_idx = idx;
+                break;
+            }
+        }
+
+        result.push(remaining.remove(selected_idx));
+    }
+
+    *instances = result;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,6 +296,8 @@ pub struct ServiceInstance {
     pub lease_id: String,
     pub expires_at_ms: u64,
     pub revision: u64,
+    pub health_check: Option<crate::health_check::HealthCheckConfig>,
+    pub health_check_state: crate::health_check::HealthCheckRuntimeState,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

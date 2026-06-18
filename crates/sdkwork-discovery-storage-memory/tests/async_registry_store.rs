@@ -21,6 +21,9 @@ fn command() -> RegisterInstanceCommand {
         metadata: Default::default(),
         lease_ttl_seconds: 30,
         now_ms: 1_000,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 
@@ -37,6 +40,8 @@ async fn memory_registry_store_contract_is_async() {
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             2_000,
         )

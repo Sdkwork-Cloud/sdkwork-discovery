@@ -401,6 +401,9 @@ async fn registry_registration_requires_write_permission() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -435,6 +438,9 @@ async fn registry_reader_can_discover_instances_but_not_write() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -449,6 +455,8 @@ async fn registry_reader_can_discover_instances_but_not_write() {
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             2_000,
         )
@@ -487,6 +495,9 @@ async fn registry_reader_can_retrieve_instance_by_identity_but_config_reader_can
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -538,6 +549,9 @@ async fn registry_reader_retrieve_instance_excludes_expired_lease_by_identity() 
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -648,6 +662,9 @@ async fn registry_status_report_requires_write_permission() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -663,6 +680,7 @@ async fn registry_status_report_requires_write_permission() {
                 instance_id: "drive-1".to_string(),
                 status: InstanceStatus::NotServing,
                 now_ms: 2_000,
+                expected_revision: None,
             },
         )
         .await
@@ -696,6 +714,9 @@ async fn registry_writer_cannot_report_status_for_expired_instance() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 1,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -711,6 +732,7 @@ async fn registry_writer_cannot_report_status_for_expired_instance() {
                 instance_id: "drive-1".to_string(),
                 status: InstanceStatus::NotServing,
                 now_ms: 2_001,
+                expected_revision: None,
             },
         )
         .await
@@ -745,6 +767,9 @@ async fn registry_reader_can_list_services() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -792,6 +817,9 @@ async fn registry_renew_and_deregister_require_write_permission() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -874,6 +902,9 @@ async fn registry_writer_deregister_expired_instance_is_idempotent_noop() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 1,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -921,6 +952,9 @@ async fn registry_expire_instances_is_internal_maintenance_and_emits_watch_event
                 metadata: Default::default(),
                 lease_ttl_seconds: 1,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -944,6 +978,9 @@ async fn registry_expire_instances_is_internal_maintenance_and_emits_watch_event
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -964,6 +1001,8 @@ async fn registry_expire_instances_is_internal_maintenance_and_emits_watch_event
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             2_001,
         )
@@ -1020,6 +1059,9 @@ async fn registry_writer_cannot_renew_expired_lease() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 1,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await
@@ -1075,6 +1117,9 @@ async fn registry_policy_rejects_register_ttl_outside_configured_bounds() {
         metadata: Default::default(),
         lease_ttl_seconds: 4,
         now_ms: 1_000,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     };
 
     let below_min = control
@@ -1129,6 +1174,9 @@ async fn registry_policy_rejects_renew_ttl_outside_configured_bounds() {
                 metadata: Default::default(),
                 lease_ttl_seconds: 30,
                 now_ms: 1_000,
+                expected_revision: None,
+                persistent: false,
+                health_check: None,
             },
         )
         .await

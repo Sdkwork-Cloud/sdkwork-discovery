@@ -32,5 +32,13 @@ pub fn map_discovery_error_to_status(error: DiscoveryError) -> Status {
             warn!(error = %message, "policy violation");
             Status::permission_denied(message)
         }
+        DiscoveryError::Conflict(message) => {
+            warn!(error = %message, "conflict");
+            Status::aborted(message)
+        }
+        DiscoveryError::Unavailable(message) => {
+            warn!(error = %message, "service unavailable");
+            Status::unavailable(message)
+        }
     }
 }

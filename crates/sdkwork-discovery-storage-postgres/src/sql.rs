@@ -14,7 +14,7 @@ RETURNING current_revision
 "#;
 
 pub const SELECT_EXISTING_INSTANCE_LEASE: &str = r#"
-SELECT lease_id
+SELECT lease_id, revision
 FROM discovery_service_instance
 WHERE namespace = $1
   AND environment = $2
@@ -42,10 +42,12 @@ INSERT INTO discovery_service_instance (
     metadata_json,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json,
+    health_check_state_json
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-    $11, $12, $13, $14::jsonb, $15, $16, $17
+    $11, $12, $13, $14::jsonb, $15, $16, $17, $18::jsonb, $19::jsonb
 )
 ON CONFLICT ON CONSTRAINT uk_discovery_service_instance_identity
 DO UPDATE SET
@@ -61,6 +63,8 @@ DO UPDATE SET
     lease_id = EXCLUDED.lease_id,
     expires_at_ms = EXCLUDED.expires_at_ms,
     revision = EXCLUDED.revision,
+    health_check_json = EXCLUDED.health_check_json,
+    health_check_state_json = EXCLUDED.health_check_state_json,
     updated_at = now(),
     version = discovery_service_instance.version + 1,
     deleted_at = NULL
@@ -95,7 +99,7 @@ RETURNING status, revision
 "#;
 
 pub const SELECT_ACTIVE_INSTANCE_FOR_STATUS: &str = r#"
-SELECT 1
+SELECT revision
 FROM discovery_service_instance
 WHERE namespace = $1
   AND environment = $2
@@ -172,7 +176,9 @@ SELECT
     metadata_json::text AS metadata_json_text,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json::text AS health_check_json_text,
+    health_check_state_json::text AS health_check_state_json_text
 FROM discovery_service_instance
 WHERE namespace = $1
   AND environment = $2
@@ -182,6 +188,44 @@ WHERE namespace = $1
   AND ($5::TEXT IS NULL OR protocol = $5)
   AND ($6::BOOLEAN = false OR status IN ('serving', 'degraded'))
 ORDER BY instance_id ASC
+"#;
+
+pub const LIST_HEALTH_CHECK_INSTANCES: &str = r#"
+SELECT
+    namespace,
+    environment,
+    service_name,
+    instance_id,
+    endpoint,
+    protocol,
+    service_version,
+    region,
+    zone,
+    weight,
+    priority,
+    status,
+    metadata_json::text AS metadata_json_text,
+    lease_id,
+    expires_at_ms,
+    revision,
+    health_check_json::text AS health_check_json_text,
+    health_check_state_json::text AS health_check_state_json_text
+FROM discovery_service_instance
+WHERE deleted_at IS NULL
+  AND expires_at_ms > $1
+  AND health_check_json IS NOT NULL
+"#;
+
+pub const UPDATE_HEALTH_CHECK_STATE: &str = r#"
+UPDATE discovery_service_instance
+SET health_check_state_json = $5::jsonb,
+    updated_at = now(),
+    version = version + 1
+WHERE namespace = $1
+  AND environment = $2
+  AND service_name = $3
+  AND instance_id = $4
+  AND deleted_at IS NULL
 "#;
 
 pub const RETRIEVE_INSTANCE: &str = r#"
@@ -201,7 +245,9 @@ SELECT
     metadata_json::text AS metadata_json_text,
     lease_id,
     expires_at_ms,
-    revision
+    revision,
+    health_check_json::text AS health_check_json_text,
+    health_check_state_json::text AS health_check_state_json_text
 FROM discovery_service_instance
 WHERE namespace = $1
   AND environment = $2
@@ -457,4 +503,39 @@ WHERE event.namespace = $1
   AND event.deleted_at IS NULL
 ORDER BY event.revision ASC
 LIMIT $4
+"#;
+
+pub const GC_WATCH_EVENTS: &str = r#"
+DELETE FROM discovery_watch_event
+WHERE revision IN (
+    SELECT revision FROM discovery_watch_event
+    WHERE revision <= $1
+      AND deleted_at IS NULL
+    ORDER BY revision ASC
+    LIMIT $2
+)
+"#;
+
+pub const SELECT_CURRENT_REVISION: &str = r#"
+SELECT COALESCE(MAX(current_revision), 0) AS current_revision
+FROM discovery_revision_counter
+"#;
+
+pub const COMPACT_WATCH_EVENTS: &str = r#"
+DELETE FROM discovery_watch_event
+WHERE revision NOT IN (
+    SELECT revision FROM (
+        SELECT revision, ROW_NUMBER() OVER (
+            PARTITION BY resource_id ORDER BY revision DESC
+        ) as rn
+        FROM discovery_watch_event
+        WHERE namespace = $1
+          AND environment = $2
+          AND deleted_at IS NULL
+    ) ranked
+    WHERE rn <= $3
+)
+AND namespace = $4
+AND environment = $5
+AND deleted_at IS NULL
 "#;

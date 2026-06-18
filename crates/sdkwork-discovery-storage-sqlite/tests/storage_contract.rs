@@ -32,6 +32,9 @@ fn register_command(instance_id: &str, endpoint: &str, now_ms: u64) -> RegisterI
             .collect(),
         lease_ttl_seconds: 30,
         now_ms,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 
@@ -60,6 +63,8 @@ async fn sqlite_registry_persists_instances_and_filters_expired_rows() {
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             2_500,
         )
@@ -78,6 +83,8 @@ async fn sqlite_registry_persists_instances_and_filters_expired_rows() {
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             33_000,
         )
@@ -253,6 +260,7 @@ async fn sqlite_report_instance_status_rejects_expired_instance_without_advancin
                 instance_id: "drive-1".to_string(),
                 status: InstanceStatus::NotServing,
                 now_ms: 2_001,
+                expected_revision: None,
             })
             .await
             .unwrap_err(),
@@ -332,6 +340,8 @@ async fn sqlite_expire_instances_soft_deletes_expired_instances_and_emits_watch_
                 service_name: "sdkwork-drive-product".to_string(),
                 healthy_only: true,
                 protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
             },
             2_001,
         )
@@ -395,6 +405,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -411,6 +423,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -427,6 +441,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     service_name: " ".to_string(),
                     healthy_only: true,
                     protocol: Some("grpc".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -505,6 +521,8 @@ async fn sqlite_discover_instances_rejects_blank_optional_protocol_filter() {
                     service_name: "sdkwork-drive-product".to_string(),
                     healthy_only: true,
                     protocol: Some(" ".to_string()),
+                    label_filters: vec![],
+                    sort_by: None,
                 },
                 1_000,
             )
@@ -1204,6 +1222,92 @@ async fn sqlite_lists_non_expired_services() {
     assert_eq!(services.revision, 1);
     assert_eq!(services.services.len(), 1);
     assert_eq!(services.services[0].service_name, "sdkwork-drive-product");
+}
+
+#[tokio::test]
+async fn sqlite_persistent_instances_survive_past_lease_ttl() {
+    let mut store = store().await;
+    let mut command = register_command("drive-persistent", "grpc://127.0.0.1:50051", 1_000);
+    command.persistent = true;
+
+    store.register_instance(command).await.unwrap();
+
+    let discovered = store
+        .discover_instances(
+            DiscoverInstancesQuery {
+                namespace: "sdkwork".to_string(),
+                environment: "development".to_string(),
+                service_name: "sdkwork-drive-product".to_string(),
+                healthy_only: true,
+                protocol: Some("grpc".to_string()),
+                label_filters: vec![],
+                sort_by: None,
+            },
+            10_000_000,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(discovered.instances.len(), 1);
+    assert_eq!(discovered.instances[0].instance_id, "drive-persistent");
+}
+
+#[tokio::test]
+async fn sqlite_register_rejects_expected_revision_mismatch() {
+    let mut store = store().await;
+
+    let registered = store
+        .register_instance(register_command("drive-1", "grpc://127.0.0.1:50051", 1_000))
+        .await
+        .unwrap();
+
+    let mut retry = register_command("drive-1", "grpc://127.0.0.1:50052", 2_000);
+    retry.expected_revision = Some(registered.revision + 99);
+
+    let error = store.register_instance(retry).await.unwrap_err();
+    assert!(matches!(error, DiscoveryError::Conflict(_)));
+}
+
+#[tokio::test]
+async fn sqlite_discover_instances_applies_label_filters() {
+    use sdkwork_discovery_contract::{LabelFilter, LabelFilterOp};
+
+    let mut store = store().await;
+
+    let mut primary = register_command("drive-primary", "grpc://127.0.0.1:50051", 1_000);
+    primary
+        .metadata
+        .insert("role".to_string(), "primary".to_string());
+    store.register_instance(primary).await.unwrap();
+
+    let mut secondary = register_command("drive-secondary", "grpc://127.0.0.1:50052", 1_000);
+    secondary
+        .metadata
+        .insert("role".to_string(), "secondary".to_string());
+    store.register_instance(secondary).await.unwrap();
+
+    let discovered = store
+        .discover_instances(
+            DiscoverInstancesQuery {
+                namespace: "sdkwork".to_string(),
+                environment: "development".to_string(),
+                service_name: "sdkwork-drive-product".to_string(),
+                healthy_only: true,
+                protocol: Some("grpc".to_string()),
+                label_filters: vec![LabelFilter {
+                    key: "role".to_string(),
+                    op: LabelFilterOp::Eq,
+                    value: "primary".to_string(),
+                }],
+                sort_by: None,
+            },
+            2_500,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(discovered.instances.len(), 1);
+    assert_eq!(discovered.instances[0].instance_id, "drive-primary");
 }
 
 fn assert_invalid_argument_contains(error: DiscoveryError, field: &str) {

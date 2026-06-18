@@ -1,0 +1,217 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.rpc.methodCatalog",
+  "sdkFamily": "sdkwork-discovery-rpc-sdk",
+  "domain": "platform",
+  "language": "rust",
+  "services": [
+    {
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "surface": "internal",
+      "methodCount": 7
+    },
+    {
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "DiscoveryConfigService",
+      "surface": "internal",
+      "methodCount": 2
+    },
+    {
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "DiscoveryWatchService",
+      "surface": "internal",
+      "methodCount": 1
+    },
+    {
+      "package": "sdkwork.discovery.backend.v3",
+      "service": "DiscoveryAdminService",
+      "surface": "backend",
+      "methodCount": 4
+    }
+  ],
+  "methods": [
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/RegisterInstance",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "RegisterInstance",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.register",
+      "auth": "service-identity",
+      "idempotency": "optional",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/BatchRegisterInstances",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "BatchRegisterInstances",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.batch_register",
+      "auth": "service-identity",
+      "idempotency": "optional",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/RenewLease",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "RenewLease",
+      "surface": "internal",
+      "operationId": "discovery.registry.leases.renew",
+      "auth": "service-identity",
+      "idempotency": "optional",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/DeregisterInstance",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "DeregisterInstance",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.deregister",
+      "auth": "service-identity",
+      "idempotency": "optional",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/ReportInstanceStatus",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "ReportInstanceStatus",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.status.report",
+      "auth": "service-identity",
+      "idempotency": "optional",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/RetrieveInstance",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "RetrieveInstance",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.retrieve",
+      "auth": "service-identity",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.RegistryService/DiscoverInstances",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "RegistryService",
+      "method": "DiscoverInstances",
+      "surface": "internal",
+      "operationId": "discovery.registry.instances.discover",
+      "auth": "service-identity",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.DiscoveryConfigService/RetrieveEffectiveConfig",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "DiscoveryConfigService",
+      "method": "RetrieveEffectiveConfig",
+      "surface": "internal",
+      "operationId": "discovery.config.effective.retrieve",
+      "auth": "service-identity",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.DiscoveryConfigService/WatchConfig",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "DiscoveryConfigService",
+      "method": "WatchConfig",
+      "surface": "internal",
+      "operationId": "discovery.config.releases.watch",
+      "auth": "service-identity",
+      "idempotency": "none",
+      "streaming": "server",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.internal.v1.DiscoveryWatchService/WatchService",
+      "package": "sdkwork.discovery.internal.v1",
+      "service": "DiscoveryWatchService",
+      "method": "WatchService",
+      "surface": "internal",
+      "operationId": "discovery.registry.services.watch",
+      "auth": "service-identity",
+      "idempotency": "none",
+      "streaming": "server",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.backend.v3.DiscoveryAdminService/CreateConfigDraft",
+      "package": "sdkwork.discovery.backend.v3",
+      "service": "DiscoveryAdminService",
+      "method": "CreateConfigDraft",
+      "surface": "backend",
+      "operationId": "discovery.config.drafts.create",
+      "auth": "backend-operator",
+      "idempotency": "required",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.backend.v3.DiscoveryAdminService/PublishConfig",
+      "package": "sdkwork.discovery.backend.v3",
+      "service": "DiscoveryAdminService",
+      "method": "PublishConfig",
+      "surface": "backend",
+      "operationId": "discovery.config.releases.publish",
+      "auth": "backend-operator",
+      "idempotency": "required",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.backend.v3.DiscoveryAdminService/RollbackConfig",
+      "package": "sdkwork.discovery.backend.v3",
+      "service": "DiscoveryAdminService",
+      "method": "RollbackConfig",
+      "surface": "backend",
+      "operationId": "discovery.config.releases.rollback",
+      "auth": "backend-operator",
+      "idempotency": "required",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    },
+    {
+      "methodKey": "sdkwork.discovery.backend.v3.DiscoveryAdminService/ListServices",
+      "package": "sdkwork.discovery.backend.v3",
+      "service": "DiscoveryAdminService",
+      "method": "ListServices",
+      "surface": "backend",
+      "operationId": "discovery.registry.services.list",
+      "auth": "backend-operator",
+      "idempotency": "none",
+      "streaming": "unary",
+      "owner": "sdkwork-platform",
+      "compatibility": "stable"
+    }
+  ]
+}

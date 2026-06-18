@@ -6,19 +6,10 @@ use tonic::metadata::MetadataMap;
 
 use crate::service_token::ServiceTokenVerifier;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub(crate) struct RpcContextPolicy {
     pub allow_unsigned_local_context: bool,
     pub service_token_verifier: Option<ServiceTokenVerifier>,
-}
-
-impl Default for RpcContextPolicy {
-    fn default() -> Self {
-        Self {
-            allow_unsigned_local_context: true,
-            service_token_verifier: None,
-        }
-    }
 }
 
 pub fn caller_from_metadata(
@@ -86,14 +77,7 @@ fn caller_from_authenticated_metadata(
 ) -> DiscoveryResult<CallerContext> {
     let has_unsigned = has_unsigned_context_metadata(metadata);
 
-    if !policy.allow_unsigned_local_context {
-        let verifier = policy.service_token_verifier.as_ref().ok_or_else(|| {
-            DiscoveryError::Unauthenticated(
-                "unsigned local context is disabled; a verified service-token context resolver is required"
-                    .to_string(),
-            )
-        })?;
-
+    if let Some(verifier) = policy.service_token_verifier.as_ref() {
         if has_unsigned {
             return Err(DiscoveryError::Unauthenticated(
                 "unsigned context metadata is not accepted with verified service-token authentication"
@@ -104,10 +88,11 @@ fn caller_from_authenticated_metadata(
         return verifier.verify(&authenticated.bearer_token, &authenticated.access_token);
     }
 
-    if !has_unsigned {
-        if let Some(verifier) = policy.service_token_verifier.as_ref() {
-            return verifier.verify(&authenticated.bearer_token, &authenticated.access_token);
-        }
+    if !policy.allow_unsigned_local_context {
+        return Err(DiscoveryError::Unauthenticated(
+            "unsigned local context is disabled; a verified service-token context resolver is required"
+                .to_string(),
+        ));
     }
 
     validate_unsigned_local_context_policy(policy)?;
@@ -126,6 +111,14 @@ fn caller_from_validated_metadata(metadata: &MetadataMap) -> DiscoveryResult<Cal
     }
 
     let mut caller = CallerContext::new(subject_id);
+
+    if let Some(tenant_id) = optional_metadata_value(metadata, "x-sdkwork-tenant-id")? {
+        caller = caller.with_tenant_id(tenant_id);
+    }
+
+    if let Some(organization_id) = optional_metadata_value(metadata, "x-sdkwork-organization-id")? {
+        caller = caller.with_organization_id(organization_id);
+    }
 
     for permission in split_permissions(
         optional_metadata_value(metadata, "x-sdkwork-registry-permissions")?.as_deref(),
@@ -234,16 +227,8 @@ fn bearer_token(value: &str) -> Option<&str> {
     }
 }
 
-pub fn request_id_from_metadata(metadata: &MetadataMap) -> DiscoveryResult<String> {
-    let request_id = optional_metadata_value(metadata, "x-request-id")?
-        .map(|value| value.trim().to_string())
-        .unwrap_or_default();
-
-    if request_id.is_empty() {
-        return Ok(generate_request_id());
-    }
-
-    Ok(request_id)
+pub fn request_id_from_metadata(_metadata: &MetadataMap) -> DiscoveryResult<String> {
+    Ok(generate_request_id())
 }
 
 pub fn trace_id_from_metadata(metadata: &MetadataMap) -> DiscoveryResult<String> {

@@ -32,7 +32,7 @@ async fn main() {
     {
         use metrics_exporter_prometheus::PrometheusBuilder;
         PrometheusBuilder::new()
-            .with_http_listener(([0, 0, 0, 0], 9090))
+            .with_http_listener(([127, 0, 0, 1], 9090))
             .install()
             .expect("failed to install Prometheus exporter");
         tracing::info!(

@@ -1,11 +1,11 @@
 use sdkwork_discovery_contract::{
-    CallerContext, ConfigDraft, ConfigPermission, ConfigRelease, CreateConfigDraftCommand,
-    DeregisterInstanceResult, DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryEvent,
-    DiscoveryResult, EffectiveConfig, ListServicesQuery, ListServicesResult, PublishConfigCommand,
-    RegisterInstanceCommand, RegisterInstanceResult, RegistryPermission, RenewLeaseCommand,
-    RenewLeaseResult, ReportInstanceStatusCommand, ReportInstanceStatusResult,
-    RetrieveEffectiveConfigQuery, RetrieveInstanceQuery, RollbackConfigCommand, ServiceInstance,
-    WatchEventsQuery,
+    BatchRegisterResult, CallerContext, ConfigDraft, ConfigPermission, ConfigRelease,
+    CreateConfigDraftCommand, DeregisterInstanceResult, DiscoverInstancesQuery,
+    DiscoverInstancesResult, DiscoveryEvent, DiscoveryResult, EffectiveConfig, ListServicesQuery,
+    ListServicesResult, PublishConfigCommand, RegisterInstanceCommand, RegisterInstanceResult,
+    RegistryPermission, RenewLeaseCommand, RenewLeaseResult, ReportInstanceStatusCommand,
+    ReportInstanceStatusResult, RetrieveEffectiveConfigQuery, RetrieveInstanceQuery,
+    RollbackConfigCommand, ServiceInstance, WatchEventsQuery,
 };
 use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore, WatchEventStore};
 
@@ -14,6 +14,7 @@ use crate::policy::{
     require_config_registry_enabled, validate_config_policy, validate_effective_config_read_policy,
     validate_registry_lease_ttl, ConfigPolicy, RegistryPolicy,
 };
+use crate::tenant_scope::require_namespace_tenant_access;
 
 pub struct DiscoveryControlPlane<S> {
     store: S,
@@ -37,12 +38,17 @@ where
         &self.store
     }
 
+    pub fn store_mut(&mut self) -> &mut S {
+        &mut self.store
+    }
+
     pub async fn create_config_draft(
         &mut self,
         caller: &CallerContext,
         command: CreateConfigDraftCommand,
     ) -> DiscoveryResult<ConfigDraft> {
         require_config_permission(caller, ConfigPermission::Publish)?;
+        require_namespace_tenant_access(caller, &command.namespace)?;
         require_config_registry_enabled(&self.config_policy)?;
         validate_config_policy(&self.config_policy, &command.format, &command.value)?;
         self.store.create_config_draft(command).await
@@ -74,6 +80,7 @@ where
         query: RetrieveEffectiveConfigQuery,
     ) -> DiscoveryResult<EffectiveConfig> {
         require_config_permission(caller, ConfigPermission::Read)?;
+        require_namespace_tenant_access(caller, &query.namespace)?;
         require_config_registry_enabled(&self.config_policy)?;
         let effective = self.store.retrieve_effective_config(query).await?;
         validate_effective_config_read_policy(&self.config_policy, &effective)?;
@@ -86,8 +93,22 @@ where
         command: RegisterInstanceCommand,
     ) -> DiscoveryResult<RegisterInstanceResult> {
         require_registry_permission(caller, RegistryPermission::Write)?;
+        require_namespace_tenant_access(caller, &command.namespace)?;
         validate_registry_lease_ttl(&self.registry_policy, command.lease_ttl_seconds)?;
         self.store.register_instance(command).await
+    }
+
+    pub async fn batch_register_instances(
+        &mut self,
+        caller: &CallerContext,
+        commands: Vec<RegisterInstanceCommand>,
+    ) -> DiscoveryResult<BatchRegisterResult> {
+        require_registry_permission(caller, RegistryPermission::Write)?;
+        for command in &commands {
+            require_namespace_tenant_access(caller, &command.namespace)?;
+            validate_registry_lease_ttl(&self.registry_policy, command.lease_ttl_seconds)?;
+        }
+        self.store.batch_register_instances(commands).await
     }
 
     pub async fn report_instance_status(
@@ -96,6 +117,7 @@ where
         command: ReportInstanceStatusCommand,
     ) -> DiscoveryResult<ReportInstanceStatusResult> {
         require_registry_permission(caller, RegistryPermission::Write)?;
+        require_namespace_tenant_access(caller, &command.namespace)?;
         self.store.report_instance_status(command).await
     }
 
@@ -119,6 +141,7 @@ where
         now_ms: u64,
     ) -> DiscoveryResult<DeregisterInstanceResult> {
         require_registry_permission(caller, RegistryPermission::Write)?;
+        require_namespace_tenant_access(caller, namespace)?;
         self.store
             .deregister_instance(namespace, environment, service_name, instance_id, now_ms)
             .await
@@ -139,6 +162,7 @@ where
         now_ms: u64,
     ) -> DiscoveryResult<DiscoverInstancesResult> {
         require_registry_permission(caller, RegistryPermission::Read)?;
+        require_namespace_tenant_access(caller, &query.namespace)?;
         self.store.discover_instances(query, now_ms).await
     }
 
@@ -149,6 +173,7 @@ where
         now_ms: u64,
     ) -> DiscoveryResult<Option<ServiceInstance>> {
         require_registry_permission(caller, RegistryPermission::Read)?;
+        require_namespace_tenant_access(caller, &query.namespace)?;
         self.store.retrieve_instance(query, now_ms).await
     }
 
@@ -159,6 +184,7 @@ where
         now_ms: u64,
     ) -> DiscoveryResult<ListServicesResult> {
         require_registry_permission(caller, RegistryPermission::Read)?;
+        require_namespace_tenant_access(caller, &query.namespace)?;
         self.store.list_services(query, now_ms).await
     }
 }
@@ -184,5 +210,15 @@ where
         require_config_permission(caller, ConfigPermission::Read)?;
         require_config_registry_enabled(&self.config_policy)?;
         self.store.watch_events(query).await
+    }
+
+    pub async fn gc_watch_events(
+        &mut self,
+        before_revision: u64,
+        max_deletes: usize,
+    ) -> DiscoveryResult<usize> {
+        self.store
+            .gc_watch_events(before_revision, max_deletes)
+            .await
     }
 }

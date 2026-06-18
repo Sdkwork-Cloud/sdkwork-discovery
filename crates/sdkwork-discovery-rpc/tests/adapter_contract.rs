@@ -1,23 +1,26 @@
 use async_trait::async_trait;
 use sdkwork_discovery_contract::DiscoveryError;
 use sdkwork_discovery_contract::{
-    ConfigDraft, ConfigRelease, CreateConfigDraftCommand, DeregisterInstanceResult,
-    DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryEvent, DiscoveryResult,
-    EffectiveConfig, InstanceStatus, ListServicesQuery, ListServicesResult, PublishConfigCommand,
-    RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand, RenewLeaseResult,
-    ReportInstanceStatusCommand, ReportInstanceStatusResult, RetrieveEffectiveConfigQuery,
-    RetrieveInstanceQuery, RollbackConfigCommand, ServiceInstance, WatchEventsQuery,
+    BatchRegisterResult, ConfigDraft, ConfigRelease, CreateConfigDraftCommand,
+    DeregisterInstanceResult, DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryEvent,
+    DiscoveryResult, EffectiveConfig, InstanceStatus, ListServicesQuery, ListServicesResult,
+    PublishConfigCommand, RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand,
+    RenewLeaseResult, ReportInstanceStatusCommand, ReportInstanceStatusResult,
+    RetrieveEffectiveConfigQuery, RetrieveInstanceQuery, RollbackConfigCommand, ServiceInstance,
+    WatchEventsQuery,
 };
 use sdkwork_discovery_core::{ConfigPolicy, DiscoveryControlPlane, RegistryPolicy};
 use sdkwork_discovery_rpc::{
     discovery_rpc_service_manifest, map_discovery_error_to_status, DiscoveryAdminRpcService,
     DiscoveryConfigRpcService, DiscoveryRpcRuntime, DiscoveryRpcRuntimeConfig,
     DiscoveryRpcServiceTokenVerifierConfig, DiscoveryWatchRpcService, RegistryRpcService,
+    RuntimeResilienceConfig,
 };
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::discovery_admin_service_server::DiscoveryAdminService;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::{
     CreateConfigDraftRequest, ListServicesRequest, PublishConfigRequest, RollbackConfigRequest,
 };
+use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1 as common_proto;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1::InstanceStatus as ProtoInstanceStatus;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1::{
     ConfigFormat as ProtoConfigFormat, ConfigScopeType as ProtoConfigScopeType,
@@ -50,12 +53,13 @@ fn service_manifest_declares_standard_discovery_methods() {
         .collect::<Vec<_>>();
 
     assert!(methods.contains(&"discovery.registry.instances.register"));
+    assert!(methods.contains(&"discovery.registry.instances.batch_register"));
     assert!(methods.contains(&"discovery.registry.instances.retrieve"));
     assert!(methods.contains(&"discovery.registry.instances.discover"));
     assert!(methods.contains(&"discovery.config.effective.retrieve"));
     assert!(methods.contains(&"discovery.config.drafts.create"));
     assert!(methods.contains(&"discovery.registry.services.list"));
-    assert_eq!(manifest.methods.len(), 13);
+    assert_eq!(manifest.methods.len(), 14);
     for method in &manifest.methods {
         assert!(
             matches!(method.surface, "internal" | "backend"),
@@ -402,7 +406,11 @@ async fn registry_service_registers_instance_from_service_identity_metadata() {
         .into_inner();
 
     assert_eq!(response.lease_id, "lease-1");
-    assert_eq!(response.metadata.unwrap().request_id, "req-1");
+    let request_id = response.metadata.unwrap().request_id;
+    assert!(
+        request_id.starts_with("req_"),
+        "expected server-generated request id, got {request_id}"
+    );
     assert!(response.expires_at.is_some());
 }
 
@@ -461,7 +469,11 @@ async fn registry_service_retrieve_instance_returns_registered_instance_by_ident
     assert_eq!(instance.priority, 0);
     assert_eq!(instance.status, ProtoInstanceStatus::Serving as i32);
     let metadata = response.metadata.unwrap();
-    assert_eq!(metadata.request_id, "req-retrieve-1");
+    assert!(
+        metadata.request_id.starts_with("req_"),
+        "expected server-generated request id, got {}",
+        metadata.request_id
+    );
     assert_eq!(metadata.revision, instance.revision);
 }
 
@@ -500,6 +512,9 @@ async fn registry_service_retrieve_instance_returns_not_found_for_expired_identi
             metadata: Default::default(),
             lease_ttl_seconds: 1,
             now_ms: 0,
+            expected_revision: None,
+            persistent: false,
+            health_check: None,
         })
         .await
         .unwrap();
@@ -608,6 +623,9 @@ async fn registry_service_renew_lease_returns_not_found_for_expired_lease() {
             metadata: Default::default(),
             lease_ttl_seconds: 1,
             now_ms: 0,
+            expected_revision: None,
+            persistent: false,
+            health_check: None,
         })
         .await
         .unwrap();
@@ -646,6 +664,9 @@ async fn registry_service_report_status_returns_not_found_for_expired_instance()
             metadata: Default::default(),
             lease_ttl_seconds: 1,
             now_ms: 0,
+            expected_revision: None,
+            persistent: false,
+            health_check: None,
         })
         .await
         .unwrap();
@@ -669,6 +690,8 @@ async fn registry_service_discover_instances_rejects_blank_protocol_filter_befor
         service_name: "sdkwork-drive-product".to_string(),
         healthy_only: true,
         protocol: " ".to_string(),
+        label_filters: vec![],
+        sort_by: 0,
     });
     add_registry_read_metadata(&mut request);
 
@@ -738,6 +761,9 @@ async fn registry_service_deregister_expired_instance_is_idempotent_noop() {
             metadata: Default::default(),
             lease_ttl_seconds: 1,
             now_ms: 0,
+            expected_revision: None,
+            persistent: false,
+            health_check: None,
         })
         .await
         .unwrap();
@@ -1101,7 +1127,10 @@ async fn watch_config_filters_service_scoped_events_by_application_and_service()
         .unwrap()
         .unwrap()
         .unwrap();
-    assert_eq!(event.event_type, "config_published");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::ConfigPublished as i32
+    );
     assert_eq!(event.group, "runtime");
     assert_eq!(event.key, "log.level");
     assert_eq!(event.metadata.unwrap().revision, 1);
@@ -1136,7 +1165,10 @@ async fn watch_service_stream_includes_registered_instance_payload() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(event.event_type, "instance_registered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     assert_eq!(event.metadata.unwrap().revision, 1);
     let instance = event
         .instance
@@ -1182,7 +1214,10 @@ async fn watch_service_live_stream_includes_registered_instance_payload() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(event.event_type, "instance_registered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     let instance = event
         .instance
         .expect("live watch service registry events must include service instance payload");
@@ -1220,7 +1255,10 @@ async fn watch_service_deregister_event_includes_identity_tombstone_payload() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(event.event_type, "instance_deregistered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceDeregistered as i32
+    );
     assert_eq!(event.metadata.unwrap().revision, 2);
     let instance = event
         .instance
@@ -1426,7 +1464,20 @@ fn runtime_with_store(store: MemoryDiscoveryStore) -> DiscoveryRpcRuntime<Memory
         },
         RegistryPolicy::default(),
     );
-    DiscoveryRpcRuntime::new(control_plane)
+    DiscoveryRpcRuntime::with_config(
+        control_plane,
+        DiscoveryRpcRuntimeConfig {
+            registry_expiry_scan_interval_ms: 0,
+            registry_expiry_scan_batch_size: 1_000,
+            allow_unsigned_local_context: true,
+            service_token_verifier: None,
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
+        },
+    )
 }
 
 fn runtime_without_unsigned_local_context() -> DiscoveryRpcRuntime<MemoryDiscoveryStore> {
@@ -1447,6 +1498,11 @@ fn runtime_without_unsigned_local_context() -> DiscoveryRpcRuntime<MemoryDiscove
             registry_expiry_scan_batch_size: 1_000,
             allow_unsigned_local_context: false,
             service_token_verifier: None,
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
         },
     )
 }
@@ -1474,6 +1530,11 @@ fn runtime_with_service_token_verifier() -> DiscoveryRpcRuntime<MemoryDiscoveryS
                 audience: "sdkwork-discovery-rpc".to_string(),
                 max_token_ttl_seconds: 200 * 365 * 24 * 60 * 60,
             }),
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
         },
     )
 }
@@ -1490,7 +1551,20 @@ fn fail_runtime() -> DiscoveryRpcRuntime<FailOnReadStore> {
         },
         RegistryPolicy::default(),
     );
-    DiscoveryRpcRuntime::new(control_plane)
+    DiscoveryRpcRuntime::with_config(
+        control_plane,
+        DiscoveryRpcRuntimeConfig {
+            registry_expiry_scan_interval_ms: 0,
+            registry_expiry_scan_batch_size: 1_000,
+            allow_unsigned_local_context: true,
+            service_token_verifier: None,
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
+        },
+    )
 }
 
 fn add_registry_write_metadata<T>(request: &mut Request<T>) {
@@ -1556,6 +1630,8 @@ async fn discover_instances_status_for_filter(
         service_name: service_name.to_string(),
         healthy_only: true,
         protocol: "grpc".to_string(),
+        label_filters: vec![],
+        sort_by: 0,
     });
     add_registry_read_metadata(&mut request);
 
@@ -1604,18 +1680,7 @@ async fn list_services_status_for_filter_with_fail_store(
     namespace: &str,
     environment: &str,
 ) -> tonic::Status {
-    let control_plane = DiscoveryControlPlane::new(
-        FailOnReadStore,
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
-        },
-        RegistryPolicy::default(),
-    );
-    let admin = DiscoveryAdminRpcService::new(DiscoveryRpcRuntime::new(control_plane));
+    let admin = DiscoveryAdminRpcService::new(fail_runtime());
     let mut request = Request::new(ListServicesRequest {
         namespace: namespace.to_string(),
         environment: environment.to_string(),
@@ -1739,6 +1804,9 @@ fn register_request() -> RegisterInstanceRequest {
         status: ProtoInstanceStatus::Serving as i32,
         metadata: Default::default(),
         lease_ttl_seconds: 30,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 
@@ -1866,6 +1934,7 @@ fn report_status_request() -> ReportInstanceStatusRequest {
         service_name: "sdkwork-drive-product".to_string(),
         instance_id: "drive-1".to_string(),
         status: ProtoInstanceStatus::Serving as i32,
+        expected_revision: None,
     }
 }
 
@@ -1991,11 +2060,24 @@ struct FailOnReadStore;
 
 #[async_trait]
 impl RegistryStore for FailOnReadStore {
+    async fn current_revision(&self) -> DiscoveryResult<u64> {
+        Err(unexpected_storage_dispatch_error("current_revision"))
+    }
+
     async fn register_instance(
         &mut self,
         _command: RegisterInstanceCommand,
     ) -> DiscoveryResult<RegisterInstanceResult> {
         Err(unexpected_storage_dispatch_error("register_instance"))
+    }
+
+    async fn batch_register_instances(
+        &mut self,
+        _commands: Vec<RegisterInstanceCommand>,
+    ) -> DiscoveryResult<BatchRegisterResult> {
+        Err(unexpected_storage_dispatch_error(
+            "batch_register_instances",
+        ))
     }
 
     async fn renew_lease(
@@ -2021,6 +2103,19 @@ impl RegistryStore for FailOnReadStore {
         _now_ms: u64,
     ) -> DiscoveryResult<DeregisterInstanceResult> {
         Err(unexpected_storage_dispatch_error("deregister_instance"))
+    }
+
+    async fn batch_deregister_instances(
+        &mut self,
+        _namespace: &str,
+        _environment: &str,
+        _service_name: &str,
+        _instance_ids: Vec<String>,
+        _now_ms: u64,
+    ) -> DiscoveryResult<Vec<DeregisterInstanceResult>> {
+        Err(unexpected_storage_dispatch_error(
+            "batch_deregister_instances",
+        ))
     }
 
     async fn expire_instances(
@@ -2053,6 +2148,28 @@ impl RegistryStore for FailOnReadStore {
         _now_ms: u64,
     ) -> DiscoveryResult<ListServicesResult> {
         Err(unexpected_storage_dispatch_error("list_services"))
+    }
+
+    async fn list_active_instances_with_health_check(
+        &self,
+        _now_ms: u64,
+    ) -> DiscoveryResult<Vec<ServiceInstance>> {
+        Err(unexpected_storage_dispatch_error(
+            "list_active_instances_with_health_check",
+        ))
+    }
+
+    async fn update_health_check_state(
+        &mut self,
+        _namespace: &str,
+        _environment: &str,
+        _service_name: &str,
+        _instance_id: &str,
+        _state: sdkwork_discovery_contract::HealthCheckRuntimeState,
+    ) -> DiscoveryResult<()> {
+        Err(unexpected_storage_dispatch_error(
+            "update_health_check_state",
+        ))
     }
 }
 
@@ -2093,6 +2210,23 @@ impl ConfigStore for FailOnReadStore {
 impl WatchEventStore for FailOnReadStore {
     async fn watch_events(&self, _query: WatchEventsQuery) -> DiscoveryResult<Vec<DiscoveryEvent>> {
         Err(unexpected_storage_dispatch_error("watch_events"))
+    }
+
+    async fn gc_watch_events(
+        &mut self,
+        _before_revision: u64,
+        _max_deletes: usize,
+    ) -> DiscoveryResult<usize> {
+        Err(unexpected_storage_dispatch_error("gc_watch_events"))
+    }
+
+    async fn compact_watch_events(
+        &mut self,
+        _namespace: &str,
+        _environment: &str,
+        _max_events_per_resource: usize,
+    ) -> DiscoveryResult<usize> {
+        Err(unexpected_storage_dispatch_error("compact_watch_events"))
     }
 }
 

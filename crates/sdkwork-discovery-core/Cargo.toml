@@ -8,6 +8,7 @@ serde_json.workspace = true
 sdkwork-discovery-contract.workspace = true
 sdkwork-discovery-storage-contract.workspace = true
 toml.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 sdkwork-discovery-storage-memory.workspace = true

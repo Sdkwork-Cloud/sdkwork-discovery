@@ -39,6 +39,10 @@ impl MemoryDiscoveryStore {
         Self::default()
     }
 
+    pub fn current_revision(&self) -> u64 {
+        self.revision
+    }
+
     pub(crate) fn next_revision(&mut self) -> u64 {
         self.revision += 1;
         self.revision

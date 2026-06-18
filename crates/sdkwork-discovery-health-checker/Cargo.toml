@@ -1,0 +1,10 @@
+[package]
+name = "sdkwork-discovery-health-checker"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+sdkwork-discovery-contract.workspace = true
+reqwest.workspace = true
+tokio = { workspace = true, features = ["net", "time"] }
+tracing.workspace = true

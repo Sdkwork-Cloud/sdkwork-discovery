@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sdkwork_discovery_contract::{DiscoveryEvent, DiscoveryResult, WatchEventsQuery};
 use sdkwork_discovery_storage_contract::WatchEventStore;
+use sqlx::Row;
 
 use crate::codec::{event_from_row, sqlx_error};
 use crate::sql;
@@ -29,6 +30,61 @@ impl WatchEventStore for SqliteDiscoveryStore {
             .filter(|event| query.matches_event(event))
             .collect();
         Ok(events)
+    }
+
+    async fn gc_watch_events(
+        &mut self,
+        before_revision: u64,
+        max_deletes: usize,
+    ) -> DiscoveryResult<usize> {
+        let result = sqlx::query(sql::GC_WATCH_EVENTS)
+            .bind(to_i64("before_revision", before_revision)?)
+            .bind(usize_to_i64("max_deletes", max_deletes)?)
+            .execute(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        Ok(result.rows_affected() as usize)
+    }
+
+    async fn compact_watch_events(
+        &mut self,
+        namespace: &str,
+        environment: &str,
+        max_events_per_resource: usize,
+    ) -> DiscoveryResult<usize> {
+        validate_non_empty("namespace", namespace)?;
+        validate_non_empty("environment", environment)?;
+
+        let before = sqlx::query("SELECT COUNT(*) as cnt FROM discovery_watch_event WHERE namespace = ? AND environment = ? AND deleted_at IS NULL")
+            .bind(namespace)
+            .bind(environment)
+            .fetch_one(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        let before_count: i64 = before.try_get("cnt").map_err(sqlx_error)?;
+
+        sqlx::query(sql::COMPACT_WATCH_EVENTS)
+            .bind(namespace)
+            .bind(environment)
+            .bind(usize_to_i64(
+                "max_events_per_resource",
+                max_events_per_resource,
+            )?)
+            .bind(namespace)
+            .bind(environment)
+            .execute(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+
+        let after = sqlx::query("SELECT COUNT(*) as cnt FROM discovery_watch_event WHERE namespace = ? AND environment = ? AND deleted_at IS NULL")
+            .bind(namespace)
+            .bind(environment)
+            .fetch_one(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        let after_count: i64 = after.try_get("cnt").map_err(sqlx_error)?;
+
+        Ok((before_count - after_count).max(0) as usize)
     }
 }
 

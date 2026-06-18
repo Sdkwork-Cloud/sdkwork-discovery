@@ -215,6 +215,10 @@ struct ServiceTokenClaims {
     audience: String,
     #[serde(rename = "sub")]
     subject_id: String,
+    #[serde(default)]
+    tenant_id: Option<String>,
+    #[serde(default)]
+    organization_id: Option<String>,
     iat_ms: u64,
     exp_ms: u64,
     access_token_sha256: String,
@@ -252,6 +256,14 @@ fn validate_header(header: &ServiceTokenHeader) -> DiscoveryResult<()> {
 
 fn caller_from_claims(claims: ServiceTokenClaims) -> DiscoveryResult<CallerContext> {
     let mut caller = CallerContext::new(claims.subject_id.trim().to_string());
+
+    if let Some(tenant_id) = claims.tenant_id {
+        caller = caller.with_tenant_id(tenant_id);
+    }
+
+    if let Some(organization_id) = claims.organization_id {
+        caller = caller.with_organization_id(organization_id);
+    }
 
     for permission in claims.registry_permissions {
         caller = caller.with_registry_permission(parse_registry_permission(&permission)?);

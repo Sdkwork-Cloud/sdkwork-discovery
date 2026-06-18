@@ -25,6 +25,9 @@ fn register_command(endpoint: &str, now_ms: u64, ttl_seconds: u64) -> RegisterIn
             .collect(),
         lease_ttl_seconds: ttl_seconds,
         now_ms,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 
@@ -35,6 +38,8 @@ fn discovery_query() -> DiscoverInstancesQuery {
         service_name: "sdkwork-drive-product".to_string(),
         healthy_only: true,
         protocol: Some("grpc".to_string()),
+        label_filters: vec![],
+        sort_by: None,
     }
 }
 
@@ -457,6 +462,7 @@ async fn report_instance_status_updates_discoverability_and_revision() {
             instance_id: "drive-1".to_string(),
             status: InstanceStatus::NotServing,
             now_ms: 2_000,
+            expected_revision: None,
         })
         .await
         .unwrap();
@@ -489,6 +495,7 @@ async fn report_instance_status_rejects_expired_instance_without_advancing_revis
                 instance_id: "drive-1".to_string(),
                 status: InstanceStatus::NotServing,
                 now_ms: 2_001,
+                expected_revision: None,
             })
             .await
             .unwrap_err(),

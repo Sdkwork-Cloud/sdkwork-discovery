@@ -17,7 +17,10 @@ No browser UI is included in this application.
 cargo test --workspace
 cargo fmt --all -- --check
 pnpm.cmd verify
+pnpm.cmd discovery:dev
 ```
+
+Topology-aware local dev loads `configs/topology/` profiles via `@sdkwork/app-topology` (`pnpm discovery:dev`, `pnpm discovery:dev:cloud`). See `docs/topology-standard.md`.
 
 `pnpm.cmd` should be used on Windows if PowerShell blocks `pnpm.ps1`.
 
@@ -31,12 +34,13 @@ cargo run -p sdkwork-discovery-service-host --offline
 
 Use `SDKWORK_DISCOVERY_CONFIG_FILE` to point at a host-local TOML config file. This key selects the file only; it is not forwarded into the runtime config overlay.
 
-The default example binds internal discovery gRPC to `127.0.0.1:19090` and backend/admin gRPC to `127.0.0.1:19091`. If both ports are configured to the same address, the product runs a single combined server; otherwise it binds separate internal and backend surfaces. Health and reflection are registered only when enabled by runtime config. The configured `default_deadline_ms` is applied to the tonic server as the default RPC request timeout.
+The default example binds **application.public-ingress** to `127.0.0.1:19090` and **operations.control-ingress** to `127.0.0.1:19091`. If both surfaces share the same address, the product runs a single combined server; otherwise it binds separate internal and backend surfaces. Health and reflection are registered only when enabled by runtime config. The configured `default_deadline_ms` is applied to the tonic server as the default RPC request timeout.
 
-The safe process env overlay supports lifecycle/runtime fields, gRPC bind fields, storage selection and storage connection fields, config/watch controls, and RPC security toggles:
+The safe process env overlay supports lifecycle/runtime fields, topology surface bind keys, storage selection and storage connection fields, config/watch controls, and RPC security toggles:
 
 - `SDKWORK_DISCOVERY_ENVIRONMENT`, `SDKWORK_DISCOVERY_CONFIG_PROFILE`, `SDKWORK_DISCOVERY_DEPLOYMENT_MODE`, `SDKWORK_DISCOVERY_RUNTIME_TARGET`
-- `SDKWORK_DISCOVERY_GRPC_BIND_HOST`, `SDKWORK_DISCOVERY_GRPC_PORT`, `SDKWORK_DISCOVERY_ADMIN_GRPC_PORT`, `SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS`
+- `SDKWORK_DISCOVERY_HOSTING`, `SDKWORK_DISCOVERY_SERVICE_LAYOUT`, `SDKWORK_DISCOVERY_PROFILE_ID`
+- `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND`, `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL`, `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND`, `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL`, `SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS`
 - `SDKWORK_DISCOVERY_STORAGE_PROVIDER`, `SDKWORK_DISCOVERY_CONFIG_REGISTRY_ENABLED`
 - Canonical PostgreSQL/SQLite database overlays: `SDKWORK_DISCOVERY_DATABASE_ENGINE`, `SDKWORK_DISCOVERY_DATABASE_HOST`, `SDKWORK_DISCOVERY_DATABASE_PORT`, `SDKWORK_DISCOVERY_DATABASE_NAME`, `SDKWORK_DISCOVERY_DATABASE_SCHEMA`, `SDKWORK_DISCOVERY_DATABASE_USERNAME`, `SDKWORK_DISCOVERY_DATABASE_PASSWORD_FILE`, `SDKWORK_DISCOVERY_DATABASE_SSL_MODE`, `SDKWORK_DISCOVERY_DATABASE_CONNECT_TIMEOUT_MS`, `SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS`, `SDKWORK_DISCOVERY_DATABASE_FILE`
 - Provider-specific PostgreSQL overlays: `SDKWORK_DISCOVERY_STORAGE_POSTGRES_HOST`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_PORT`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_SCHEMA`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_USERNAME`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_PASSWORD_FILE`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_TLS_ENABLED`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_CONNECT_TIMEOUT_MS`, `SDKWORK_DISCOVERY_STORAGE_POSTGRES_MAX_CONNECTIONS`

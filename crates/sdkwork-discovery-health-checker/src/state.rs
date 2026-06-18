@@ -1,0 +1,1 @@
+pub use sdkwork_discovery_contract::HealthCheckRuntimeState as HealthCheckState;

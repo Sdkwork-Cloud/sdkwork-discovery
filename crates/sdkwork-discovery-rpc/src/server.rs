@@ -13,7 +13,17 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{oneshot, Semaphore};
 use tokio_stream::wrappers::TcpListenerStream;
 use tonic::transport::{Certificate, Identity, Server, ServerTlsConfig};
+use tonic_health::pb::health_server::HealthServer;
 use tracing::{error, info, warn};
+
+type DiscoveryHealthServer = HealthServer<tonic_health::server::HealthService>;
+
+fn discovery_health_pair() -> (tonic_health::server::HealthReporter, DiscoveryHealthServer) {
+    let reporter = tonic_health::server::HealthReporter::new();
+    let service = tonic_health::server::HealthService::from_health_reporter(reporter.clone());
+    let server = DiscoveryHealthServer::new(service);
+    (reporter, server)
+}
 
 use crate::services::DiscoveryWatchServiceConfig;
 use crate::{
@@ -104,6 +114,8 @@ pub struct DiscoveryRpcServices<S> {
 pub struct DiscoveryRpcServerHandle {
     shutdown: Option<oneshot::Sender<()>>,
     join_handle: tokio::task::JoinHandle<DiscoveryResult<()>>,
+    health_reporter: Option<tonic_health::server::HealthReporter>,
+    health_service_names: Vec<String>,
 }
 
 impl<S> DiscoveryRpcServices<S> {
@@ -140,23 +152,15 @@ impl DiscoveryRpcServerHandle {
         validate_server_config(&config)?;
         validate_transport_config(&config)?;
 
-        let bind_addr = config.bind_addr.clone();
-        let incoming = TcpListenerStream::new(listener);
-        let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-        let join_handle = tokio::spawn(async move {
-            info!(bind_addr = %bind_addr, "starting gRPC server");
-            let result = serve_with_incoming(config, services, incoming, shutdown_receiver).await;
-            match &result {
-                Ok(_) => info!(bind_addr = %bind_addr, "gRPC server stopped"),
-                Err(error) => error!(bind_addr = %bind_addr, error = %error, "gRPC server failed"),
-            }
-            result
-        });
-
-        Ok(Self {
-            shutdown: Some(shutdown_sender),
-            join_handle,
-        })
+        let health_names = full_rpc_health_service_names(config.watch_enabled);
+        start_rpc_server(
+            config,
+            services,
+            listener,
+            health_names,
+            serve_with_incoming,
+        )
+        .await
     }
 
     pub async fn serve_internal<S>(
@@ -186,16 +190,15 @@ impl DiscoveryRpcServerHandle {
         validate_server_config(&config)?;
         validate_transport_config(&config)?;
 
-        let incoming = TcpListenerStream::new(listener);
-        let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-        let join_handle = tokio::spawn(async move {
-            serve_internal_with_incoming(config, services, incoming, shutdown_receiver).await
-        });
-
-        Ok(Self {
-            shutdown: Some(shutdown_sender),
-            join_handle,
-        })
+        let health_names = internal_rpc_health_service_names(config.watch_enabled);
+        start_rpc_server(
+            config,
+            services,
+            listener,
+            health_names,
+            serve_internal_with_incoming,
+        )
+        .await
     }
 
     pub async fn serve_backend<S>(
@@ -225,20 +228,21 @@ impl DiscoveryRpcServerHandle {
         validate_server_config(&config)?;
         validate_transport_config(&config)?;
 
-        let incoming = TcpListenerStream::new(listener);
-        let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-        let join_handle = tokio::spawn(async move {
-            serve_backend_with_incoming(config, services, incoming, shutdown_receiver).await
-        });
-
-        Ok(Self {
-            shutdown: Some(shutdown_sender),
-            join_handle,
-        })
+        start_rpc_server(
+            config,
+            services,
+            listener,
+            BACKEND_RPC_HEALTH_SERVICES,
+            serve_backend_with_incoming,
+        )
+        .await
     }
 
     pub async fn shutdown(mut self) {
         info!("shutting down gRPC server");
+        if let Some(reporter) = &self.health_reporter {
+            set_health_services_not_serving(reporter, &self.health_service_names).await;
+        }
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -259,6 +263,7 @@ async fn serve_with_incoming<S>(
     services: DiscoveryRpcServices<S>,
     incoming: TcpListenerStream,
     shutdown: oneshot::Receiver<()>,
+    health_service: Option<DiscoveryHealthServer>,
 ) -> DiscoveryResult<()>
 where
     S: ConfigStore + RegistryStore + WatchEventStore + Send + Sync + 'static,
@@ -293,13 +298,7 @@ where
             })?;
 
         let mut router = base_server(&config)?.add_service(reflection);
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(
-                &health_reporter,
-                full_rpc_health_service_names(config.watch_enabled),
-            )
-            .await;
+        if let Some(health_service) = health_service {
             router = router.add_service(health_service);
         }
         if config.watch_enabled {
@@ -322,13 +321,7 @@ where
         }
     } else {
         let mut server = base_server(&config)?;
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(
-                &health_reporter,
-                full_rpc_health_service_names(config.watch_enabled),
-            )
-            .await;
+        if let Some(health_service) = health_service {
             if config.watch_enabled {
                 server
                     .add_service(health_service)
@@ -377,6 +370,7 @@ async fn serve_internal_with_incoming<S>(
     services: DiscoveryRpcServices<S>,
     incoming: TcpListenerStream,
     shutdown: oneshot::Receiver<()>,
+    health_service: Option<DiscoveryHealthServer>,
 ) -> DiscoveryResult<()>
 where
     S: ConfigStore + RegistryStore + WatchEventStore + Send + Sync + 'static,
@@ -410,13 +404,7 @@ where
             })?;
 
         let mut router = base_server(&config)?.add_service(reflection);
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(
-                &health_reporter,
-                internal_rpc_health_service_names(config.watch_enabled),
-            )
-            .await;
+        if let Some(health_service) = health_service {
             router = router.add_service(health_service);
         }
         if config.watch_enabled {
@@ -437,13 +425,7 @@ where
         }
     } else {
         let mut server = base_server(&config)?;
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(
-                &health_reporter,
-                internal_rpc_health_service_names(config.watch_enabled),
-            )
-            .await;
+        if let Some(health_service) = health_service {
             if config.watch_enabled {
                 server
                     .add_service(health_service)
@@ -488,6 +470,7 @@ async fn serve_backend_with_incoming<S>(
     services: DiscoveryRpcServices<S>,
     incoming: TcpListenerStream,
     shutdown: oneshot::Receiver<()>,
+    health_service: Option<DiscoveryHealthServer>,
 ) -> DiscoveryResult<()>
 where
     S: ConfigStore + RegistryStore + WatchEventStore + Send + Sync + 'static,
@@ -508,9 +491,7 @@ where
             })?;
 
         let mut router = base_server(&config)?.add_service(reflection);
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(&health_reporter, BACKEND_RPC_HEALTH_SERVICES).await;
+        if let Some(health_service) = health_service {
             router = router.add_service(health_service);
         }
         router
@@ -520,9 +501,7 @@ where
             .map_err(server_error)?;
     } else {
         let mut server = base_server(&config)?;
-        if config.enable_health {
-            let (health_reporter, health_service) = tonic_health::server::health_reporter();
-            set_health_services_serving(&health_reporter, BACKEND_RPC_HEALTH_SERVICES).await;
+        if let Some(health_service) = health_service {
             server
                 .add_service(health_service)
                 .add_service(admin)
@@ -648,13 +627,93 @@ async fn set_health_services_serving(
     }
 }
 
+async fn set_health_services_not_serving(
+    health_reporter: &tonic_health::server::HealthReporter,
+    service_names: &[String],
+) {
+    for service_name in service_names {
+        health_reporter
+            .set_service_status(service_name, tonic_health::ServingStatus::NotServing)
+            .await;
+    }
+}
+
+async fn start_rpc_server<S, ServeFn, ServeFut>(
+    config: DiscoveryRpcServerConfig,
+    services: DiscoveryRpcServices<S>,
+    listener: TcpListener,
+    health_names: &[&str],
+    serve: ServeFn,
+) -> DiscoveryResult<DiscoveryRpcServerHandle>
+where
+    S: ConfigStore + RegistryStore + WatchEventStore + Send + Sync + 'static,
+    ServeFn: FnOnce(
+            DiscoveryRpcServerConfig,
+            DiscoveryRpcServices<S>,
+            TcpListenerStream,
+            oneshot::Receiver<()>,
+            Option<DiscoveryHealthServer>,
+        ) -> ServeFut
+        + Send
+        + 'static,
+    ServeFut: std::future::Future<Output = DiscoveryResult<()>> + Send + 'static,
+{
+    validate_server_config(&config)?;
+    validate_transport_config(&config)?;
+
+    let health_service_names = if config.enable_health {
+        health_names
+            .iter()
+            .map(|service_name| (*service_name).to_string())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    let (health_reporter, health_service) = if config.enable_health {
+        let (reporter, service) = discovery_health_pair();
+        set_health_services_serving(&reporter, health_names).await;
+        (Some(reporter), Some(service))
+    } else {
+        (None, None)
+    };
+
+    let bind_addr = config.bind_addr.clone();
+    let incoming = TcpListenerStream::new(listener);
+    let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+    let join_handle = tokio::spawn(async move {
+        info!(bind_addr = %bind_addr, "starting gRPC server");
+        let result = serve(
+            config,
+            services,
+            incoming,
+            shutdown_receiver,
+            health_service,
+        )
+        .await;
+        match &result {
+            Ok(_) => info!(bind_addr = %bind_addr, "gRPC server stopped"),
+            Err(error) => error!(bind_addr = %bind_addr, error = %error, "gRPC server failed"),
+        }
+        result
+    });
+
+    Ok(DiscoveryRpcServerHandle {
+        shutdown: Some(shutdown_sender),
+        join_handle,
+        health_reporter,
+        health_service_names,
+    })
+}
+
 fn validate_transport_config(config: &DiscoveryRpcServerConfig) -> DiscoveryResult<()> {
     let _ = base_server(config)?;
     Ok(())
 }
 
 fn base_server(config: &DiscoveryRpcServerConfig) -> DiscoveryResult<Server> {
-    let server = Server::builder().timeout(Duration::from_millis(config.default_deadline_ms));
+    let _deadline_ms = config.default_deadline_ms;
+    let server = Server::builder();
 
     if !config.require_tls {
         return Ok(server);

@@ -1,17 +1,18 @@
 use async_trait::async_trait;
 use sdkwork_discovery_contract::{
-    DeregisterInstanceResult, DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryError,
-    DiscoveryEventKind, DiscoveryResult, ListServicesQuery, ListServicesResult,
-    RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand, RenewLeaseResult,
-    ReportInstanceStatusCommand, ReportInstanceStatusResult, RetrieveInstanceQuery,
-    ServiceInstance, ServiceSummary,
+    BatchOperationError, BatchRegisterResult, DeregisterInstanceResult, DiscoverInstancesQuery,
+    DiscoverInstancesResult, DiscoveryError, DiscoveryEventKind, DiscoveryResult,
+    ListServicesQuery, ListServicesResult, RegisterInstanceCommand, RegisterInstanceResult,
+    RenewLeaseCommand, RenewLeaseResult, ReportInstanceStatusCommand, ReportInstanceStatusResult,
+    RetrieveInstanceQuery, ServiceInstance, ServiceSummary,
 };
 use sdkwork_discovery_storage_contract::RegistryStore;
 use sqlx::{Row, Sqlite, Transaction};
 
 use crate::codec::{
-    bind_priority, bind_weight, encode_event_kind, encode_instance_status, metadata_to_json,
-    new_prefixed_id, new_uuid, service_instance_from_row, sqlx_error,
+    bind_priority, bind_weight, encode_event_kind, encode_instance_status,
+    health_check_state_to_json, health_check_to_json, metadata_to_json, new_prefixed_id, new_uuid,
+    service_instance_from_row, sqlx_error,
 };
 use crate::sql;
 use crate::store::SqliteDiscoveryStore;
@@ -19,35 +20,38 @@ use crate::validation::{i64_to_u64, to_i64, usize_to_i64, validate_non_empty};
 
 #[async_trait]
 impl RegistryStore for SqliteDiscoveryStore {
+    async fn current_revision(&self) -> DiscoveryResult<u64> {
+        let row = sqlx::query(sql::SELECT_CURRENT_REVISION)
+            .fetch_one(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        let revision: i64 = row.try_get("current_revision").map_err(sqlx_error)?;
+        Ok(revision as u64)
+    }
+
     async fn register_instance(
         &mut self,
         command: RegisterInstanceCommand,
     ) -> DiscoveryResult<RegisterInstanceResult> {
         validate_register_command(&command)?;
 
-        let expires_at_ms = command
-            .now_ms
-            .checked_add(
-                command
-                    .lease_ttl_seconds
-                    .checked_mul(1_000)
-                    .ok_or_else(|| {
-                        DiscoveryError::InvalidArgument(
-                            "lease ttl overflows milliseconds".to_string(),
-                        )
-                    })?,
-            )
-            .ok_or_else(|| {
-                DiscoveryError::InvalidArgument("lease expiration overflows".to_string())
-            })?;
+        let expires_at_ms = lease_expires_at_ms(
+            command.now_ms,
+            command.lease_ttl_seconds,
+            command.persistent,
+        )?;
         let expires_at_ms_i64 = to_i64("expires_at_ms", expires_at_ms)?;
         let metadata_json = metadata_to_json(&command.metadata)?;
+        let health_check_json = health_check_to_json(&command.health_check)?;
+        let health_check_state_json = health_check_state_to_json(
+            &sdkwork_discovery_contract::HealthCheckRuntimeState::default(),
+        )?;
         let status = encode_instance_status(&command.status);
         let weight = bind_weight(command.weight)?;
         let priority = bind_priority(command.priority)?;
 
         let mut transaction = self.pool().begin().await.map_err(sqlx_error)?;
-        let existing_lease: Option<String> = sqlx::query(sql::SELECT_EXISTING_INSTANCE_LEASE)
+        let existing_row = sqlx::query(sql::SELECT_EXISTING_INSTANCE_LEASE)
             .bind(&command.namespace)
             .bind(&command.environment)
             .bind(&command.service_name)
@@ -55,7 +59,22 @@ impl RegistryStore for SqliteDiscoveryStore {
             .bind(to_i64("now_ms", command.now_ms)?)
             .fetch_optional(&mut *transaction)
             .await
-            .map_err(sqlx_error)?
+            .map_err(sqlx_error)?;
+
+        if let Some(expected_revision) = command.expected_revision {
+            if let Some(row) = &existing_row {
+                let current_revision =
+                    i64_to_u64("revision", row.try_get("revision").map_err(sqlx_error)?)?;
+                if current_revision != expected_revision {
+                    return Err(DiscoveryError::Conflict(format!(
+                        "expected revision {expected_revision} but found {current_revision}"
+                    )));
+                }
+            }
+        }
+
+        let existing_lease: Option<String> = existing_row
+            .as_ref()
             .map(|row| row.try_get("lease_id"))
             .transpose()
             .map_err(sqlx_error)?;
@@ -82,6 +101,8 @@ impl RegistryStore for SqliteDiscoveryStore {
             .bind(&lease_id)
             .bind(expires_at_ms_i64)
             .bind(to_i64("revision", revision)?)
+            .bind(&health_check_json)
+            .bind(&health_check_state_json)
             .fetch_one(&mut *transaction)
             .await
             .map_err(sqlx_error)?;
@@ -114,6 +135,27 @@ impl RegistryStore for SqliteDiscoveryStore {
             )?,
             revision: i64_to_u64("revision", row.try_get("revision").map_err(sqlx_error)?)?,
         })
+    }
+
+    async fn batch_register_instances(
+        &mut self,
+        commands: Vec<RegisterInstanceCommand>,
+    ) -> DiscoveryResult<BatchRegisterResult> {
+        let mut results = Vec::with_capacity(commands.len());
+        let mut errors = Vec::new();
+
+        for (index, command) in commands.into_iter().enumerate() {
+            match self.register_instance(command).await {
+                Ok(result) => results.push(result),
+                Err(e) => errors.push(BatchOperationError {
+                    index,
+                    error_code: e.kind_string().to_string(),
+                    error_message: e.to_string(),
+                }),
+            }
+        }
+
+        Ok(BatchRegisterResult { results, errors })
     }
 
     async fn renew_lease(
@@ -206,7 +248,7 @@ impl RegistryStore for SqliteDiscoveryStore {
 
         let status = encode_instance_status(&command.status);
         let mut transaction = self.pool().begin().await.map_err(sqlx_error)?;
-        sqlx::query(sql::SELECT_ACTIVE_INSTANCE_FOR_STATUS)
+        let current_row = sqlx::query(sql::SELECT_ACTIVE_INSTANCE_FOR_STATUS)
             .bind(&command.namespace)
             .bind(&command.environment)
             .bind(&command.service_name)
@@ -216,6 +258,19 @@ impl RegistryStore for SqliteDiscoveryStore {
             .await
             .map_err(sqlx_error)?
             .ok_or_else(|| DiscoveryError::NotFound("instance not found".to_string()))?;
+
+        if let Some(expected_revision) = command.expected_revision {
+            let current_revision = i64_to_u64(
+                "revision",
+                current_row.try_get("revision").map_err(sqlx_error)?,
+            )?;
+            if current_revision != expected_revision {
+                return Err(DiscoveryError::Conflict(format!(
+                    "expected revision {expected_revision} but found {current_revision}"
+                )));
+            }
+        }
+
         let revision =
             next_revision(&mut transaction, &command.namespace, &command.environment).await?;
         let row = sqlx::query(sql::REPORT_INSTANCE_STATUS)
@@ -327,6 +382,24 @@ impl RegistryStore for SqliteDiscoveryStore {
         Ok(result)
     }
 
+    async fn batch_deregister_instances(
+        &mut self,
+        namespace: &str,
+        environment: &str,
+        service_name: &str,
+        instance_ids: Vec<String>,
+        now_ms: u64,
+    ) -> DiscoveryResult<Vec<DeregisterInstanceResult>> {
+        let mut results = Vec::with_capacity(instance_ids.len());
+        for instance_id in instance_ids {
+            let result = self
+                .deregister_instance(namespace, environment, service_name, &instance_id, now_ms)
+                .await?;
+            results.push(result);
+        }
+        Ok(results)
+    }
+
     async fn expire_instances(
         &mut self,
         now_ms: u64,
@@ -421,10 +494,9 @@ impl RegistryStore for SqliteDiscoveryStore {
             instances.push(instance);
         }
 
-        Ok(DiscoverInstancesResult {
-            revision,
-            instances,
-        })
+        Ok(sdkwork_discovery_contract::finalize_discover_instances(
+            instances, &query, revision,
+        ))
     }
 
     async fn retrieve_instance(
@@ -488,6 +560,42 @@ impl RegistryStore for SqliteDiscoveryStore {
 
         Ok(ListServicesResult { revision, services })
     }
+
+    async fn list_active_instances_with_health_check(
+        &self,
+        now_ms: u64,
+    ) -> DiscoveryResult<Vec<ServiceInstance>> {
+        let rows = sqlx::query(sql::LIST_HEALTH_CHECK_INSTANCES)
+            .bind(to_i64("now_ms", now_ms)?)
+            .fetch_all(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        rows.iter().map(service_instance_from_row).collect()
+    }
+
+    async fn update_health_check_state(
+        &mut self,
+        namespace: &str,
+        environment: &str,
+        service_name: &str,
+        instance_id: &str,
+        state: sdkwork_discovery_contract::HealthCheckRuntimeState,
+    ) -> DiscoveryResult<()> {
+        let state_json = health_check_state_to_json(&state)?;
+        let result = sqlx::query(sql::UPDATE_HEALTH_CHECK_STATE)
+            .bind(&state_json)
+            .bind(namespace)
+            .bind(environment)
+            .bind(service_name)
+            .bind(instance_id)
+            .execute(self.pool())
+            .await
+            .map_err(sqlx_error)?;
+        if result.rows_affected() == 0 {
+            return Err(DiscoveryError::NotFound("instance not found".to_string()));
+        }
+        Ok(())
+    }
 }
 
 fn validate_register_command(command: &RegisterInstanceCommand) -> DiscoveryResult<()> {
@@ -513,6 +621,23 @@ fn validate_optional_filter(field: &str, value: Option<&str>) -> DiscoveryResult
         validate_non_empty(field, value)?;
     }
     Ok(())
+}
+
+fn lease_expires_at_ms(
+    now_ms: u64,
+    lease_ttl_seconds: u64,
+    persistent: bool,
+) -> DiscoveryResult<u64> {
+    if persistent {
+        return Ok(i64::MAX as u64);
+    }
+
+    let ttl_ms = lease_ttl_seconds.checked_mul(1_000).ok_or_else(|| {
+        DiscoveryError::InvalidArgument("lease ttl overflows milliseconds".to_string())
+    })?;
+    now_ms
+        .checked_add(ttl_ms)
+        .ok_or_else(|| DiscoveryError::InvalidArgument("lease expiration overflows".to_string()))
 }
 
 pub(crate) async fn next_revision(

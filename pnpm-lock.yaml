@@ -1,0 +1,23 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .:
+    dependencies:
+      '@sdkwork/app-topology':
+        specifier: file:../sdkwork-app-topology
+        version: file:../sdkwork-app-topology
+
+packages:
+
+  '@sdkwork/app-topology@file:../sdkwork-app-topology':
+    resolution: {directory: ../sdkwork-app-topology, type: directory}
+    hasBin: true
+
+snapshots:
+
+  '@sdkwork/app-topology@file:../sdkwork-app-topology': {}

@@ -3,11 +3,13 @@ use sdkwork_discovery_core::{ConfigPolicy, DiscoveryControlPlane, RegistryPolicy
 use sdkwork_discovery_rpc::{
     DiscoveryRpcRuntime, DiscoveryRpcRuntimeConfig, DiscoveryRpcServerConfig,
     DiscoveryRpcServerHandle, DiscoveryRpcServices, DiscoveryRpcTlsIdentity,
+    RuntimeResilienceConfig,
 };
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::discovery_admin_service_client::DiscoveryAdminServiceClient;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::backend::v3::{
     CreateConfigDraftRequest, ListServicesRequest, PublishConfigRequest,
 };
+use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1 as common_proto;
 use sdkwork_discovery_rpc_proto::sdkwork::discovery::common::v1::{
     ConfigFormat as ProtoConfigFormat, ConfigScopeType as ProtoConfigScopeType,
     InstanceStatus as ProtoInstanceStatus,
@@ -31,17 +33,7 @@ use tonic::Request;
 async fn generated_client_can_call_registry_service_on_local_server() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let runtime = DiscoveryRpcRuntime::new(DiscoveryControlPlane::new(
-        MemoryDiscoveryStore::new(),
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
-        },
-        RegistryPolicy::default(),
-    ));
+    let runtime = runtime();
     let services = DiscoveryRpcServices::new(runtime);
     let server = DiscoveryRpcServerHandle::serve_with_listener(
         DiscoveryRpcServerConfig {
@@ -89,17 +81,7 @@ async fn generated_client_can_call_registry_service_on_local_server() {
 async fn generated_client_can_retrieve_registered_instance_on_local_server() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let runtime = DiscoveryRpcRuntime::new(DiscoveryControlPlane::new(
-        MemoryDiscoveryStore::new(),
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
-        },
-        RegistryPolicy::default(),
-    ));
+    let runtime = runtime();
     let services = DiscoveryRpcServices::new(runtime);
     let server = DiscoveryRpcServerHandle::serve_with_listener(
         DiscoveryRpcServerConfig {
@@ -158,17 +140,7 @@ async fn generated_client_can_retrieve_registered_instance_on_local_server() {
 async fn generated_clients_can_publish_and_retrieve_effective_config_on_local_server() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let runtime = DiscoveryRpcRuntime::new(DiscoveryControlPlane::new(
-        MemoryDiscoveryStore::new(),
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
-        },
-        RegistryPolicy::default(),
-    ));
+    let runtime = runtime();
     let services = DiscoveryRpcServices::new(runtime);
     let server = DiscoveryRpcServerHandle::serve_with_listener(
         DiscoveryRpcServerConfig {
@@ -428,6 +400,81 @@ async fn health_service_reports_registered_rpc_services_as_serving() {
 }
 
 #[tokio::test]
+async fn health_service_flips_to_not_serving_during_shutdown() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let runtime = runtime();
+    let services = DiscoveryRpcServices::new(runtime);
+    let server = DiscoveryRpcServerHandle::serve_with_listener(
+        DiscoveryRpcServerConfig {
+            bind_addr: addr.to_string(),
+            enable_health: true,
+            enable_reflection: false,
+            default_deadline_ms: 5_000,
+            watch_enabled: true,
+            watch_max_streams: 10_000,
+            watch_event_buffer_size: 1_024,
+            watch_heartbeat_interval_ms: 15_000,
+            watch_durable_poll_interval_ms: 1_000,
+            watch_durable_replay_batch_size: 1_000,
+            require_tls: false,
+            tls_identity: None,
+            client_ca_certificate_pem: None,
+        },
+        services,
+        listener,
+    )
+    .await
+    .unwrap();
+
+    let channel = Endpoint::from_shared(format!("http://{addr}"))
+        .unwrap()
+        .connect()
+        .await
+        .unwrap();
+    let mut client = tonic_health::pb::health_client::HealthClient::new(channel);
+    let response = client
+        .check(tonic_health::pb::HealthCheckRequest {
+            service: String::new(),
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(
+        response.status,
+        tonic_health::pb::health_check_response::ServingStatus::Serving as i32,
+    );
+
+    let shutdown_task = tokio::spawn(async move {
+        server.shutdown().await;
+    });
+
+    let mut saw_not_serving = false;
+    for _ in 0..20 {
+        if let Ok(response) = client
+            .check(tonic_health::pb::HealthCheckRequest {
+                service: String::new(),
+            })
+            .await
+        {
+            if response.into_inner().status
+                == tonic_health::pb::health_check_response::ServingStatus::NotServing as i32
+            {
+                saw_not_serving = true;
+                break;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    shutdown_task.await.unwrap();
+
+    assert!(
+        saw_not_serving,
+        "health status must flip to NOT_SERVING before shutdown completes"
+    );
+}
+
+#[tokio::test]
 async fn internal_health_service_reports_only_internal_rpc_services() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
@@ -607,7 +654,10 @@ async fn watch_service_streams_historical_registry_events() {
     let event = stream.message().await.unwrap().unwrap();
     server.shutdown().await;
 
-    assert_eq!(event.event_type, "instance_registered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     assert!(event.metadata.as_ref().unwrap().revision >= 1);
     let instance = event
         .instance
@@ -684,7 +734,10 @@ async fn watch_service_replays_history_then_streams_live_registry_events() {
         .unwrap()
         .unwrap()
         .unwrap();
-    assert_eq!(replayed.event_type, "instance_registered");
+    assert_eq!(
+        replayed.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     assert_eq!(replayed.metadata.as_ref().unwrap().revision, 1);
     let replayed_instance = replayed
         .instance
@@ -708,7 +761,10 @@ async fn watch_service_replays_history_then_streams_live_registry_events() {
         .unwrap();
     server.shutdown().await;
 
-    assert_eq!(live.event_type, "instance_registered");
+    assert_eq!(
+        live.event_type,
+        common_proto::WatchEventType::InstanceRegistered as i32
+    );
     assert_eq!(live.metadata.as_ref().unwrap().revision, 2);
     let live_instance = live
         .instance
@@ -741,6 +797,9 @@ async fn runtime_expiry_scan_publishes_live_deregister_watch_event() {
             metadata: Default::default(),
             lease_ttl_seconds: 1,
             now_ms: 0,
+            expected_revision: None,
+            persistent: false,
+            health_check: None,
         })
         .await
         .unwrap();
@@ -761,6 +820,11 @@ async fn runtime_expiry_scan_publishes_live_deregister_watch_event() {
             registry_expiry_scan_batch_size: 1_000,
             allow_unsigned_local_context: true,
             service_token_verifier: None,
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
         },
     );
     let services = DiscoveryRpcServices::new(runtime);
@@ -808,7 +872,10 @@ async fn runtime_expiry_scan_publishes_live_deregister_watch_event() {
         .unwrap();
     server.shutdown().await;
 
-    assert_eq!(event.event_type, "instance_deregistered");
+    assert_eq!(
+        event.event_type,
+        common_proto::WatchEventType::InstanceDeregistered as i32
+    );
     assert_eq!(event.metadata.as_ref().unwrap().revision, 2);
     let instance = event
         .instance
@@ -987,7 +1054,10 @@ async fn watch_service_sends_idle_heartbeat() {
         .unwrap();
     server.shutdown().await;
 
-    assert_eq!(heartbeat.event_type, "heartbeat");
+    assert_eq!(
+        heartbeat.event_type,
+        common_proto::WatchEventType::Heartbeat as i32
+    );
     assert_eq!(heartbeat.metadata.unwrap().revision, 0);
 }
 
@@ -1163,17 +1233,7 @@ async fn server_rejects_zero_durable_watch_poll_interval_before_spawning() {
 async fn internal_server_does_not_expose_backend_admin_service() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    let runtime = DiscoveryRpcRuntime::new(DiscoveryControlPlane::new(
-        MemoryDiscoveryStore::new(),
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
-        },
-        RegistryPolicy::default(),
-    ));
+    let runtime = runtime();
     let services = DiscoveryRpcServices::new(runtime);
     let server = DiscoveryRpcServerHandle::serve_internal_with_listener(
         DiscoveryRpcServerConfig {
@@ -1221,17 +1281,30 @@ async fn internal_server_does_not_expose_backend_admin_service() {
 }
 
 fn runtime() -> DiscoveryRpcRuntime<MemoryDiscoveryStore> {
-    DiscoveryRpcRuntime::new(DiscoveryControlPlane::new(
-        MemoryDiscoveryStore::new(),
-        ConfigPolicy {
-            enabled: true,
-            require_publish_for_reads: true,
-            allow_secret_values: false,
-            allow_secret_refs: true,
-            max_config_body_bytes: 1024,
+    DiscoveryRpcRuntime::with_config(
+        DiscoveryControlPlane::new(
+            MemoryDiscoveryStore::new(),
+            ConfigPolicy {
+                enabled: true,
+                require_publish_for_reads: true,
+                allow_secret_values: false,
+                allow_secret_refs: true,
+                max_config_body_bytes: 1024,
+            },
+            RegistryPolicy::default(),
+        ),
+        DiscoveryRpcRuntimeConfig {
+            registry_expiry_scan_interval_ms: 0,
+            registry_expiry_scan_batch_size: 1_000,
+            allow_unsigned_local_context: true,
+            service_token_verifier: None,
+            event_gc_interval_ms: 0,
+            event_gc_retention_count: 10_000,
+            event_gc_batch_size: 1_000,
+            resilience: RuntimeResilienceConfig::default(),
+            health_check_scan_interval_ms: 0,
         },
-        RegistryPolicy::default(),
-    ))
+    )
 }
 
 fn add_registry_write_metadata<T>(request: &mut Request<T>) {
@@ -1322,6 +1395,9 @@ fn register_request_for(instance_id: &str) -> RegisterInstanceRequest {
         status: ProtoInstanceStatus::Serving as i32,
         metadata: Default::default(),
         lease_ttl_seconds: 30,
+        expected_revision: None,
+        persistent: false,
+        health_check: None,
     }
 }
 

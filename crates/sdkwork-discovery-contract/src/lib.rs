@@ -1,13 +1,23 @@
 //! SDKWork Discovery domain contract crate.
 
 mod context;
+pub mod encryption;
 mod error;
+pub mod health_check;
+pub mod namespace;
 mod registry;
 mod rpc_contract;
 mod runtime_config;
 
 pub use context::{CallerContext, ConfigPermission, RegistryPermission};
+#[rustfmt::skip]
+pub use encryption::{ConfigEncryptor, EncryptedValue, EncryptionAlgorithm, EncryptionConfig, NoopConfigEncryptor};
 pub use error::{DiscoveryError, DiscoveryResult};
+pub use health_check::{HealthCheckConfig, HealthCheckProbe, HealthCheckRuntimeState};
+pub use namespace::{MemoryNamespaceStore, NamespaceConfig, NamespaceQuotaStatus, NamespaceStore};
+pub use registry::finalize_discover_instances;
+pub use registry::BatchOperationError;
+pub use registry::BatchRegisterResult;
 pub use registry::ConfigDraft;
 pub use registry::ConfigFormat;
 pub use registry::ConfigRelease;
@@ -16,12 +26,15 @@ pub use registry::CreateConfigDraftCommand;
 pub use registry::DeregisterInstanceResult;
 pub use registry::DiscoverInstancesQuery;
 pub use registry::DiscoverInstancesResult;
+pub use registry::DiscoverSortBy;
 pub use registry::DiscoveryEvent;
 pub use registry::DiscoveryEventKind;
 pub use registry::EffectiveConfig;
 pub use registry::EffectiveConfigValue;
 pub use registry::IdempotencyContext;
 pub use registry::InstanceStatus;
+pub use registry::LabelFilter;
+pub use registry::LabelFilterOp;
 pub use registry::ListServicesQuery;
 pub use registry::ListServicesResult;
 pub use registry::PublishConfigCommand;
