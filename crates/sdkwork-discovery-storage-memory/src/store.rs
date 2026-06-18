@@ -14,7 +14,7 @@ pub struct MemoryDiscoveryStore {
     pub(crate) idempotency: HashMap<IdempotencyKey, IdempotencyRecord>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub(crate) struct InstanceKey {
     pub(crate) namespace: String,
     pub(crate) environment: String,
@@ -22,13 +22,13 @@ pub(crate) struct InstanceKey {
     pub(crate) instance_id: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IdempotencyKey {
     pub(crate) operation_id: String,
     pub(crate) key: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct IdempotencyRecord {
     pub(crate) request_hash: String,
     pub(crate) resource_id: String,

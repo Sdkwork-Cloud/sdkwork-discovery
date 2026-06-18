@@ -20,6 +20,8 @@
     "clippy": "cargo clippy --workspace --all-targets -- -D warnings",
     "verify": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && pnpm run test:topology-validate && pnpm run topology:matrix && pnpm run test:topology-baggage && pnpm run verify:sdk-rust && pnpm run verify:sdk-typescript",
     "verify:sdk-rust": "cargo build --manifest-path sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/Cargo.toml",
-    "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check"
+    "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check",
+    "package:server": "node scripts/package-server.mjs package",
+    "package:server:validate": "node scripts/package-server.mjs validate"
   }
 }

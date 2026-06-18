@@ -262,7 +262,7 @@ impl RegistryStore for MemoryDiscoveryStore {
 
         Ok(ReportInstanceStatusResult {
             revision,
-            status: instance.status.clone(),
+            status: instance.status,
         })
     }
 

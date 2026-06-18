@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum InstanceStatus {
     Serving,
     Degraded,
@@ -278,7 +279,7 @@ pub struct ServiceSummary {
     pub latest_revision: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ServiceInstance {
     pub namespace: String,
     pub environment: String,
@@ -300,14 +301,16 @@ pub struct ServiceInstance {
     pub health_check_state: crate::health_check::HealthCheckRuntimeState,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ConfigFormat {
     Text,
     Json,
     Toml,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ConfigScope {
     Namespace,
     Application {
@@ -376,7 +379,7 @@ pub struct CreateConfigDraftCommand {
     pub idempotency: Option<IdempotencyContext>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigDraft {
     pub draft_id: String,
     pub namespace: String,
@@ -407,7 +410,7 @@ pub struct RollbackConfigCommand {
     pub idempotency: Option<IdempotencyContext>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ConfigRelease {
     pub release_id: String,
     pub draft_id: String,
@@ -448,7 +451,8 @@ pub struct EffectiveConfigValue {
     pub source_revision: u64,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DiscoveryEventKind {
     InstanceRegistered,
     InstanceUpdated,
@@ -459,7 +463,7 @@ pub enum DiscoveryEventKind {
     ConfigRolledBack,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DiscoveryEvent {
     pub revision: u64,
     pub namespace: String,

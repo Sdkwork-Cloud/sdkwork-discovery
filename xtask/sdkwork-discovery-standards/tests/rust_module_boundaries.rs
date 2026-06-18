@@ -72,6 +72,56 @@ fn rpc_adapter_crate_has_no_forbidden_transport_or_storage_dependencies() {
 }
 
 #[test]
+fn durable_storage_crates_integrate_sdkwork_database() {
+    let workspace_root = workspace_root();
+    for crate_name in [
+        "sdkwork-discovery-storage-sqlite",
+        "sdkwork-discovery-storage-postgres",
+    ] {
+        let manifest = fs::read_to_string(
+            workspace_root
+                .join("crates")
+                .join(crate_name)
+                .join("Cargo.toml"),
+        )
+        .unwrap();
+        assert!(
+            manifest.contains("sdkwork-database-config"),
+            "{crate_name} must depend on sdkwork-database-config"
+        );
+        assert!(
+            manifest.contains("sdkwork-database-sqlx"),
+            "{crate_name} must depend on sdkwork-database-sqlx"
+        );
+
+        let bootstrap = fs::read_to_string(
+            workspace_root
+                .join("crates")
+                .join(crate_name)
+                .join("src/database_bootstrap.rs"),
+        )
+        .unwrap();
+        assert!(
+            bootstrap.contains("create_pool_from_config"),
+            "{crate_name} database bootstrap must use sdkwork-database-sqlx pool creation"
+        );
+    }
+
+    let redis_manifest = fs::read_to_string(
+        workspace_root.join("crates/sdkwork-discovery-storage-redis/Cargo.toml"),
+    )
+    .unwrap();
+    assert!(redis_manifest.contains("redis"));
+    assert!(redis_manifest.contains("sdkwork-discovery-storage-memory"));
+
+    assert!(workspace_root.join("sdkwork.workflow.json").exists());
+    assert!(workspace_root
+        .join(".github/workflows/package.yml")
+        .exists());
+    assert!(workspace_root.join("scripts/package-server.mjs").exists());
+}
+
+#[test]
 fn rpc_sdk_language_workspaces_are_present() {
     let workspace_root = workspace_root();
     assert!(workspace_root

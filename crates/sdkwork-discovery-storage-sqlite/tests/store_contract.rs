@@ -6,7 +6,7 @@ fn lazy_store_can_be_constructed_without_tokio_context() {
 
     assert_eq!(
         store.safe_summary(),
-        "sqlite file=target/dev/discovery/discovery.sqlite max_connections=1"
+        "sqlite file=target/dev/discovery/discovery.sqlite max_connections=1 service=DISCOVERY"
     );
 }
 
@@ -16,7 +16,7 @@ fn lazy_memory_store_uses_single_connection_without_tokio_context() {
 
     assert_eq!(
         store.safe_summary(),
-        "sqlite file=:memory: max_connections=1"
+        "sqlite file=:memory: max_connections=1 service=DISCOVERY"
     );
 }
 

@@ -11,6 +11,7 @@ use sdkwork_discovery_rpc::{
 use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore, WatchEventStore};
 use sdkwork_discovery_storage_memory::MemoryDiscoveryStore;
 use sdkwork_discovery_storage_postgres::PostgresDiscoveryStore;
+use sdkwork_discovery_storage_redis::RedisDiscoveryStore;
 use sdkwork_discovery_storage_sqlite::SqliteDiscoveryStore;
 
 pub struct DiscoveryServiceHostBootstrap {
@@ -34,6 +35,10 @@ enum DiscoveryRuntimeStorage {
     },
     Sqlite {
         control_plane: Option<DiscoveryControlPlane<SqliteDiscoveryStore>>,
+        safe_summary: String,
+    },
+    Redis {
+        control_plane: Option<DiscoveryControlPlane<RedisDiscoveryStore>>,
         safe_summary: String,
     },
 }
@@ -65,6 +70,7 @@ impl DiscoveryServiceHostBootstrap {
             DiscoveryRuntimeStorage::Memory { .. } => "memory".to_string(),
             DiscoveryRuntimeStorage::Postgres { safe_summary, .. } => safe_summary.clone(),
             DiscoveryRuntimeStorage::Sqlite { safe_summary, .. } => safe_summary.clone(),
+            DiscoveryRuntimeStorage::Redis { safe_summary, .. } => safe_summary.clone(),
         }
     }
 
@@ -115,6 +121,7 @@ impl DiscoveryServiceHostBootstrap {
             } => Err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
                 "sqlite control plane has already been moved into the gRPC runtime".to_string(),
             )),
+            DiscoveryRuntimeStorage::Redis { .. } => Ok(()),
         }
     }
 
@@ -158,6 +165,16 @@ impl DiscoveryServiceHostBootstrap {
                 let control_plane = control_plane.take().ok_or_else(|| {
                     sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
                         "sqlite control plane has already been moved into the gRPC runtime"
+                            .to_string(),
+                    )
+                })?;
+                let runtime = DiscoveryRpcRuntime::with_config(control_plane, runtime_config);
+                serve_runtime(internal_config, backend_config, runtime).await
+            }
+            DiscoveryRuntimeStorage::Redis { control_plane, .. } => {
+                let control_plane = control_plane.take().ok_or_else(|| {
+                    sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
+                        "redis control plane has already been moved into the gRPC runtime"
                             .to_string(),
                     )
                 })?;
@@ -225,10 +242,27 @@ fn build_runtime_storage(
                 safe_summary,
             })
         }
-        _ => Err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
+        StorageProvider::Redis => {
+            let transport = config.storage.redis.as_ref().ok_or_else(|| {
+                sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
+                    "storage provider redis requires [storage.redis]".to_string(),
+                )
+            })?;
+            let store = RedisDiscoveryStore::new_lazy(transport, None)?;
+            let safe_summary = store.safe_summary().to_string();
+            Ok(DiscoveryRuntimeStorage::Redis {
+                control_plane: Some(DiscoveryControlPlane::new(
+                    store,
+                    config_policy(config),
+                    registry_policy(config),
+                )),
+                safe_summary,
+            })
+        }
+        provider => Err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
             format!(
                 "storage provider {} is configured but the adapter is not implemented",
-                config.storage.provider.as_str()
+                provider.as_str()
             ),
         )),
     }

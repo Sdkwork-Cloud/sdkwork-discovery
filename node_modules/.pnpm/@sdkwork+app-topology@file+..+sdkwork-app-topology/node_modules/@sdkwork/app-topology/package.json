@@ -1,0 +1,28 @@
+{
+  "name": "@sdkwork/app-topology",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SDKWork cross-application topology standard, profile loader, IAM database helpers, and dev orchestration library",
+  "license": "SEE LICENSE IN LICENSE",
+  "type": "module",
+  "exports": {
+    ".": "./tools/topology/lib/index.mjs",
+    "./schema": "./specs/topology.schema.json"
+  },
+  "bin": {
+    "sdkwork-topology": "./scripts/sdkwork-topology.mjs"
+  },
+  "files": [
+    "tools/",
+    "scripts/",
+    "specs/",
+    "configs/templates/",
+    "docs/",
+    "examples/"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "validate:example": "node scripts/sdkwork-topology.mjs validate --root . --spec examples/sdkwork-drive/topology.spec.json",
+    "matrix:example": "node scripts/sdkwork-topology.mjs print-matrix --root . --spec examples/sdkwork-drive/topology.spec.json"
+  }
+}

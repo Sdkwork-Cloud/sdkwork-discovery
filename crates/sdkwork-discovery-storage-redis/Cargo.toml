@@ -1,0 +1,16 @@
+[package]
+name = "sdkwork-discovery-storage-redis"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+redis = { workspace = true }
+sdkwork-discovery-config.workspace = true
+sdkwork-discovery-contract.workspace = true
+sdkwork-discovery-storage-contract.workspace = true
+sdkwork-discovery-storage-memory.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

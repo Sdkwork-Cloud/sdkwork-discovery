@@ -70,7 +70,7 @@ Runtime storage is selected by typed config under `[storage]`. Supported provide
 - `memory`: deterministic local/test adapter.
 - `postgres`: durable PostgreSQL adapter for registry, config, and watch storage. Apply `crates/sdkwork-discovery-storage-postgres/migrations/202606090001_initial_discovery_schema.sql` before serving traffic, or call the adapter migration entrypoint from an async runtime-owned bootstrap.
 - `sqlite`: durable local/test/small single-node adapter for registry, config, and watch storage. Apply `crates/sdkwork-discovery-storage-sqlite/migrations/202606090001_initial_discovery_sqlite_schema.sql` before serving traffic, or set `apply_initial_schema = true` only in non-production bootstrap.
-- `redis`: cache/watch configuration shape, fail-fast at product bootstrap until the adapter lands.
+- `redis`: durable Redis-backed registry, config, and watch storage using the `sdkwork:discovery:v1` key namespace. Suitable for single-writer or restart recovery deployments; multi-writer clusters should prefer PostgreSQL or add external coordination.
 - `etcd`: distributed registry/watch configuration shape, fail-fast at product bootstrap until the adapter lands.
 - `consul`: distributed registry/watch configuration shape, fail-fast at product bootstrap until the adapter lands.
 

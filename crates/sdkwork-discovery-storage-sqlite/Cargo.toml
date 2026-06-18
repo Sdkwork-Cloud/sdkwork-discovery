@@ -7,8 +7,8 @@ version.workspace = true
 async-trait.workspace = true
 sdkwork-discovery-storage-contract.workspace = true
 sdkwork-discovery-contract.workspace = true
-sdkwork-database-config = { path = "../../../sdkwork-database/crates/sdkwork-database-config" }
-sdkwork-database-sqlx = { path = "../../../sdkwork-database/crates/sdkwork-database-sqlx" }
+sdkwork-database-config.workspace = true
+sdkwork-database-sqlx.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 sqlx.workspace = true

@@ -105,6 +105,7 @@
       "crates/sdkwork-discovery-storage-contract",
       "crates/sdkwork-discovery-storage-memory",
       "crates/sdkwork-discovery-storage-postgres",
+      "crates/sdkwork-discovery-storage-redis",
       "crates/sdkwork-discovery-storage-sqlite",
       "crates/sdkwork-discovery-core",
       "crates/sdkwork-discovery-health-checker",
@@ -252,6 +253,7 @@
       "pnpm.cmd verify",
       "pnpm.cmd run verify:sdk-rust",
       "pnpm.cmd run verify:sdk-typescript",
+      "pnpm.cmd run package:server:validate",
       "cargo clippy --workspace --all-targets -- -D warnings"
     ]
   },
@@ -271,6 +273,22 @@
       "completedAt": "2026-06-15",
       "breaking": false,
       "description": "Updated dependency path from sdkwork-pool to sdkwork-database"
+    },
+    {
+      "issue": "sdkwork-discovery-storage-postgres used raw sqlx pool bootstrap without sdkwork-database",
+      "target": "sdkwork-database",
+      "status": "completed",
+      "completedAt": "2026-06-18",
+      "breaking": false,
+      "description": "PostgreSQL and SQLite durable storage now bootstrap pools through sdkwork-database-config and sdkwork-database-sqlx"
+    },
+    {
+      "issue": "Missing sdkwork.workflow.json and GitHub packaging workflow per GITHUB_WORKFLOW_SPEC.md",
+      "target": "sdkwork.workflow.json",
+      "status": "completed",
+      "completedAt": "2026-06-18",
+      "breaking": false,
+      "description": "Added sdkwork.workflow.json, .github/workflows/package.yml, and scripts/package-server.mjs"
     }
   ]
 }

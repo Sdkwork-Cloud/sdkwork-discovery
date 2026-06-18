@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/schemas/app-topology/v1",
+  "title": "SDKWork App Topology Spec",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "appId", "vocabulary", "defaults"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "sdkwork.app.topology" },
+    "appId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "profileRoot": { "type": "string", "default": "configs/topology" },
+    "profilePattern": { "type": "string", "default": "{topology}.{profile}.env" },
+    "vocabulary": {
+      "type": "object",
+      "required": ["topology", "profile"],
+      "properties": {
+        "topology": {
+          "type": "object",
+          "required": ["allowed"],
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        },
+        "profile": {
+          "type": "object",
+          "required": ["allowed"],
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "developmentTopology": { "type": "string" },
+        "buildTopology": { "type": "string" },
+        "desktopBuildTopology": { "type": "string" },
+        "gatewayBind": { "type": "string" }
+      }
+    },
+    "envKeys": { "type": "object", "additionalProperties": { "type": "string" } },
+    "database": { "type": "object", "additionalProperties": { "type": "string" } },
+    "iamDevDefaults": { "type": "object", "additionalProperties": { "type": "string" } },
+    "components": { "type": "object" },
+    "packaging": {
+      "type": "object",
+      "properties": {
+        "targets": { "type": "array" }
+      }
+    },
+    "profileFiles": { "type": "object" },
+    "scripts": { "type": "object" }
+  }
+}

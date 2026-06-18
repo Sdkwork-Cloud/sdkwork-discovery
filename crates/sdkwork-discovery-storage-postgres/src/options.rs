@@ -85,6 +85,34 @@ impl PostgresConnectionOptions {
         self.max_connections
     }
 
+    pub fn tls_enabled(&self) -> bool {
+        self.tls_enabled
+    }
+
+    pub fn database_url(&self) -> String {
+        let authority = match self.username.as_deref() {
+            Some(username) if !username.is_empty() => {
+                let password = self
+                    .password
+                    .as_deref()
+                    .filter(|value| !value.is_empty())
+                    .map(|value| format!(":{value}"))
+                    .unwrap_or_default();
+                format!("{username}{password}@{}:{}", self.host, self.port)
+            }
+            _ => format!("{}:{}", self.host, self.port),
+        };
+        let ssl_mode = if self.tls_enabled {
+            "require"
+        } else {
+            "disable"
+        };
+        format!(
+            "postgres://{authority}/{database}?sslmode={ssl_mode}",
+            database = self.database
+        )
+    }
+
     pub fn connection_uri(&self) -> String {
         let authority = match self.username.as_deref() {
             Some(username) if !username.is_empty() => {

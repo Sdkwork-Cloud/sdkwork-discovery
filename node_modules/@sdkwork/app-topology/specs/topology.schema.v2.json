@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sdkwork.dev/schemas/app-topology/v2",
+  "title": "SDKWork App Topology Spec v2",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "appId", "archetype", "vocabulary", "defaults"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "kind": { "const": "sdkwork.app.topology" },
+    "appId": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "archetype": {
+      "type": "string",
+      "enum": [
+        "application-http-gateway",
+        "realtime-application-platform",
+        "application-rest-edge-device"
+      ]
+    },
+    "profileRoot": { "type": "string", "default": "configs/topology" },
+    "profilePattern": {
+      "type": "string",
+      "default": "{hosting}.{serviceLayout}.{environment}.env"
+    },
+    "vocabulary": {
+      "type": "object",
+      "required": ["hosting", "serviceLayout", "environment"],
+      "properties": {
+        "hosting": {
+          "type": "object",
+          "required": ["allowed"],
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "enum": ["self-hosted", "cloud-hosted"] },
+              "minItems": 1
+            }
+          }
+        },
+        "serviceLayout": {
+          "type": "object",
+          "required": ["allowed"],
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "enum": ["unified-process", "split-services"] },
+              "minItems": 1
+            }
+          }
+        },
+        "environment": {
+          "type": "object",
+          "required": ["allowed"],
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": { "enum": ["development", "production"] },
+              "minItems": 1
+            }
+          }
+        },
+        "connectivityPlane": {
+          "type": "object",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": {
+                "enum": ["application", "platform", "operations", "edge"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "developmentProfileId": { "type": "string" },
+        "productionProfileId": { "type": "string" },
+        "desktopBuildProfileId": { "type": "string" }
+      }
+    },
+    "profileFiles": { "type": "object" },
+    "surfaces": { "type": "object" },
+    "orchestration": { "type": "object" },
+    "internalUpstreams": { "type": "object" },
+    "packaging": { "type": "object" },
+    "retired": { "type": "object" }
+  }
+}

@@ -2,6 +2,7 @@
 
 mod codec;
 mod config;
+mod database_bootstrap;
 mod hash;
 pub mod migration;
 mod registry;

@@ -6,6 +6,7 @@ members = [
     "crates/sdkwork-discovery-storage-contract",
     "crates/sdkwork-discovery-storage-memory",
     "crates/sdkwork-discovery-storage-postgres",
+    "crates/sdkwork-discovery-storage-redis",
     "crates/sdkwork-discovery-storage-sqlite",
     "crates/sdkwork-discovery-core",
     "crates/sdkwork-discovery-rpc-proto",
@@ -44,6 +45,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = "0.24"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 uuid = { version = "1.18", features = ["v7"] }
+redis = { version = "0.27", features = ["tokio-comp"] }
 
 sdkwork-discovery-config = { path = "crates/sdkwork-discovery-config" }
 sdkwork-discovery-contract = { path = "crates/sdkwork-discovery-contract" }
@@ -54,4 +56,7 @@ sdkwork-discovery-rpc-proto = { path = "crates/sdkwork-discovery-rpc-proto" }
 sdkwork-discovery-storage-contract = { path = "crates/sdkwork-discovery-storage-contract" }
 sdkwork-discovery-storage-memory = { path = "crates/sdkwork-discovery-storage-memory" }
 sdkwork-discovery-storage-postgres = { path = "crates/sdkwork-discovery-storage-postgres" }
+sdkwork-discovery-storage-redis = { path = "crates/sdkwork-discovery-storage-redis" }
 sdkwork-discovery-storage-sqlite = { path = "crates/sdkwork-discovery-storage-sqlite" }
+sdkwork-database-config = { path = "../sdkwork-database/crates/sdkwork-database-config" }
+sdkwork-database-sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx" }

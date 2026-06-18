@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.app.topology",
+  "appId": "sdkwork-drive",
+  "profileRoot": "configs/topology",
+  "profilePattern": "{topology}.{profile}.env",
+  "vocabulary": {
+    "topology": {
+      "allowed": ["standalone", "cloud"],
+      "description": "Drive API deployment topology."
+    },
+    "profile": {
+      "allowed": ["development", "production"],
+      "description": "Runtime profile loaded from configs/topology/{topology}.{profile}.env"
+    }
+  },
+  "defaults": {
+    "developmentTopology": "standalone",
+    "desktopBuildTopology": "cloud",
+    "gatewayBind": "127.0.0.1:3900"
+  },
+  "envKeys": {
+    "topology": "SDKWORK_DRIVE_TOPOLOGY",
+    "profile": "SDKWORK_DRIVE_PROFILE",
+    "gatewayAutostart": "SDKWORK_DRIVE_GATEWAY_AUTOSTART",
+    "standaloneGatewayBind": "SDKWORK_DRIVE_STANDALONE_GATEWAY_BIND",
+    "standaloneGatewayConfig": "SDKWORK_DRIVE_STANDALONE_GATEWAY_CONFIG",
+    "standaloneGatewayEnvironment": "SDKWORK_DRIVE_STANDALONE_GATEWAY_ENVIRONMENT",
+    "cloudGatewayBind": "SDKWORK_API_GATEWAY_BIND",
+    "cloudGatewayConfig": "SDKWORK_API_GATEWAY_CONFIG",
+    "clientTopology": "VITE_DRIVE_PC_TOPOLOGY",
+    "clientApiGatewayBaseUrl": "VITE_DRIVE_PC_API_GATEWAY_BASE_URL",
+    "apiGatewayBaseUrl": "SDKWORK_DRIVE_API_GATEWAY_BASE_URL"
+  },
+  "database": {
+    "appPrefix": "SDKWORK_DRIVE"
+  },
+  "iamDevDefaults": {
+    "SDKWORK_IAM_LOCAL_APP_ID": "sdkwork-drive-pc",
+    "SDKWORK_IAM_LOCAL_TENANT_ID": "tenant_drive_dev",
+    "SDKWORK_IAM_LOCAL_ORGANIZATION_ID": "org_drive_dev",
+    "SDKWORK_IAM_LOCAL_ORGANIZATION_NAME": "Drive Dev Organization",
+    "SDKWORK_IAM_LOCAL_DEPARTMENT_ID": "dept_drive_dev",
+    "SDKWORK_IAM_LOCAL_DEPARTMENT_NAME": "Drive Dev Department",
+    "SDKWORK_IAM_LOCAL_POSITION_ID": "pos_drive_dev",
+    "SDKWORK_IAM_LOCAL_POSITION_NAME": "Drive Dev Position",
+    "SDKWORK_IAM_LOCAL_BOOTSTRAP_EMAIL": "admin@sdkwork.test",
+    "SDKWORK_IAM_LOCAL_BOOTSTRAP_PASSWORD": "AdminPass#2026",
+    "SDKWORK_IAM_TENANT_SIGNING_MASTER_SECRET": "sdkwork-drive-dev-signing-secret"
+  },
+  "components": {
+    "standaloneGateway": {
+      "crate": "sdkwork-drive-standalone-gateway",
+      "binary": "sdkwork-drive-standalone-gateway",
+      "configGlob": "configs/sdkwork-drive-standalone-gateway.{profile}.toml"
+    },
+    "cloudGateway": {
+      "crate": "sdkwork-api-gateway-api-server",
+      "binary": "sdkwork-api-gateway",
+      "repository": "sdkwork-api-gateway",
+      "configGlob": "configs/sdkwork-api-gateway.drive.{profile}.toml"
+    }
+  },
+  "packaging": {
+    "cloudConfigFiles": [
+      "sdkwork-api-gateway.drive.development.toml",
+      "sdkwork-api-gateway.drive.production.toml"
+    ],
+    "targets": [
+      {
+        "id": "linux-x64-standalone-gateway-tar-gz",
+        "profile": "standalone",
+        "platform": "linux",
+        "architecture": "x64",
+        "formats": ["tar.gz"],
+        "runner": "ubuntu-24.04",
+        "rustTarget": "x86_64-unknown-linux-gnu",
+        "outputGlob": "dist/standalone-gateway/sdkwork-drive-standalone-gateway-*-linux-x64-standalone-gateway.tar.gz"
+      },
+      {
+        "id": "cloud-config-bundle-tar-gz",
+        "profile": "cloud-config",
+        "platform": "all",
+        "architecture": "all",
+        "formats": ["tar.gz"],
+        "runner": "ubuntu-24.04",
+        "outputGlob": "dist/cloud-config/sdkwork-drive-api-gateway-config-*.tar.gz"
+      }
+    ]
+  }
+}
