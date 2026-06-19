@@ -81,15 +81,19 @@
   },
   "targets": [
     {
-      "id": "linux-x64-server-tar-gz",
+      "id": "linux-x64-cloud-server-tar-gz",
       "profile": "server",
       "platform": "linux",
       "architecture": "x64",
-      "formats": ["tar.gz"],
+      "formats": [
+        "tar.gz"
+      ],
       "runner": "ubuntu-24.04",
       "deploymentProfile": "cloud",
-      "runtimeTarget": "SERVER",
-      "outputGlobs": ["dist/server/sdkwork-discovery-*-linux-x64-server.tar.gz"]
+      "runtimeTarget": "server",
+      "outputGlobs": [
+        "dist/server/sdkwork-discovery-*-linux-x64-server.tar.gz"
+      ]
     }
   ],
   "security": {

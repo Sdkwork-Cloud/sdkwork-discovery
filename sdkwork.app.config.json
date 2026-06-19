@@ -27,7 +27,6 @@
     "grantMode": "current",
     "platform": "WEB",
     "appId": null,
-    "tenantId": "20001",
     "organizationId": null
   },
   "runtime": {
@@ -42,7 +41,12 @@
       "DIRECT_DOWNLOAD"
     ],
     "defaultPlatform": "SERVER",
-    "defaultArchitecture": "x64"
+    "defaultArchitecture": "x64",
+    "supportedDeploymentProfiles": [
+      "cloud",
+      "standalone"
+    ],
+    "defaultDeploymentProfile": "cloud"
   },
   "publish": {
     "status": "DRAFT",
