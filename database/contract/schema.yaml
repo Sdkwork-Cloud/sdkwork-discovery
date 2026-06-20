@@ -1,0 +1,28 @@
+schema_version: 1
+kind: sdkwork.database.schema
+module_id: discovery
+contract_version: 1.0.0
+owner_team: discovery-platform
+compliance_level: L2
+engines:
+  - postgres
+table_prefix: discovery_
+tables:
+  - name: discovery_revision_counter
+    lifecycle_status: active
+    owner: discovery-platform
+  - name: discovery_service_instance
+    lifecycle_status: active
+    owner: discovery-platform
+  - name: discovery_config_draft
+    lifecycle_status: active
+    owner: discovery-platform
+  - name: discovery_config_release
+    lifecycle_status: active
+    owner: discovery-platform
+  - name: discovery_idempotency_record
+    lifecycle_status: active
+    owner: discovery-platform
+  - name: discovery_watch_event
+    lifecycle_status: active
+    owner: discovery-platform

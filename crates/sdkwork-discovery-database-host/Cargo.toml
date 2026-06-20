@@ -1,0 +1,16 @@
+[package]
+name = "sdkwork-discovery-database-host"
+edition.workspace = true
+version.workspace = true
+description = "SDKWork Discovery database lifecycle bootstrap."
+
+[lib]
+name = "sdkwork_discovery_database_host"
+path = "src/lib.rs"
+
+[dependencies]
+dotenvy = "0.15"
+sdkwork_database_config = { workspace = true }
+sdkwork_database_lifecycle = { workspace = true }
+sdkwork_database_spi = { workspace = true }
+sdkwork_database_sqlx = { workspace = true }

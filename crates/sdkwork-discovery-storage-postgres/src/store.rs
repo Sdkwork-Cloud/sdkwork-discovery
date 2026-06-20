@@ -8,7 +8,7 @@ use crate::database_bootstrap::{
     connect_postgres_pool, lazy_postgres_pool, postgres_database_config,
 };
 use crate::options::PostgresConnectionOptions;
-use crate::{codec::sqlx_error, migration};
+use crate::{migration};
 
 #[derive(Debug)]
 pub struct PostgresDiscoveryStore {
@@ -49,10 +49,12 @@ impl PostgresDiscoveryStore {
     }
 
     pub async fn apply_initial_schema(&self) -> DiscoveryResult<()> {
-        sqlx::query(migration::INITIAL_SCHEMA_SQL)
-            .execute(self.pool())
+        let database_pool = connect_postgres_pool(self.database_config.clone()).await?;
+        crate::bootstrap::bootstrap_discovery_database(database_pool)
             .await
-            .map_err(sqlx_error)?;
+            .map_err(|error| {
+                sdkwork_discovery_contract::DiscoveryError::InvalidConfig(error)
+            })?;
         Ok(())
     }
 

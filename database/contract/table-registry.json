@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.database.table-registry",
+  "tables": [
+    {
+      "table_name": "discovery_revision_counter",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "discovery_service_instance",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "discovery_config_draft",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "discovery_config_release",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "discovery_idempotency_record",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    },
+    {
+      "table_name": "discovery_watch_event",
+      "owner": "discovery-platform",
+      "compliance_level": "L2",
+      "lifecycle_status": "active"
+    }
+  ]
+}

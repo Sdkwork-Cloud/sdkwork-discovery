@@ -1942,6 +1942,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdkwork-database-history"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "sdkwork-database-config",
+ "sdkwork-database-sqlx",
+ "sha2",
+ "sqlx",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "sdkwork-database-lifecycle"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "sdkwork-database-config",
+ "sdkwork-database-history",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "sdkwork-database-spi"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "regex",
+ "sdkwork-database-config",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "sdkwork-database-sqlx"
 version = "0.1.0"
 dependencies = [
@@ -1986,6 +2027,17 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+]
+
+[[package]]
+name = "sdkwork-discovery-database-host"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "sdkwork-database-config",
+ "sdkwork-database-lifecycle",
+ "sdkwork-database-spi",
+ "sdkwork-database-sqlx",
 ]
 
 [[package]]
@@ -2097,6 +2149,7 @@ dependencies = [
  "sdkwork-database-sqlx",
  "sdkwork-discovery-config",
  "sdkwork-discovery-contract",
+ "sdkwork-discovery-database-host",
  "sdkwork-discovery-storage-contract",
  "serde_json",
  "sha2",
@@ -2225,6 +2278,19 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_yaml"
+version = "0.9.34+deprecated"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "ryu",
+ "serde",
+ "unsafe-libyaml",
 ]
 
 [[package]]
@@ -3056,6 +3122,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unsafe-libyaml"
+version = "0.2.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

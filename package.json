@@ -22,6 +22,17 @@
     "verify:sdk-rust": "cargo build --manifest-path sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/Cargo.toml",
     "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check",
     "package:server": "node scripts/package-server.mjs package",
-    "package:server:validate": "node scripts/package-server.mjs validate"
+    "package:server:validate": "node scripts/package-server.mjs validate",
+    "db:materialize:contract": "node tools/materialize_discovery_database_contract.mjs",
+    "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
+    "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
+    "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
+    "db:migrate": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . migrate",
+    "db:seed": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . seed",
+    "db:status": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . status",
+    "db:drift": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . drift",
+    "db:drift:check": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . drift-check",
+    "db:bootstrap": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . bootstrap",
+    "test:contract:database": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root ."
   }
 }

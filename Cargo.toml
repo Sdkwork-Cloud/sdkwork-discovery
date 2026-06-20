@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/sdkwork-discovery-database-host",
     "crates/sdkwork-discovery-contract",
     "crates/sdkwork-discovery-config",
     "crates/sdkwork-discovery-health-checker",
@@ -47,6 +48,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 uuid = { version = "1.18", features = ["v7"] }
 redis = { version = "0.27", features = ["tokio-comp"] }
 
+sdkwork-discovery-database-host = { path = "crates/sdkwork-discovery-database-host" }
 sdkwork-discovery-config = { path = "crates/sdkwork-discovery-config" }
 sdkwork-discovery-contract = { path = "crates/sdkwork-discovery-contract" }
 sdkwork-discovery-health-checker = { path = "crates/sdkwork-discovery-health-checker" }
@@ -58,5 +60,11 @@ sdkwork-discovery-storage-memory = { path = "crates/sdkwork-discovery-storage-me
 sdkwork-discovery-storage-postgres = { path = "crates/sdkwork-discovery-storage-postgres" }
 sdkwork-discovery-storage-redis = { path = "crates/sdkwork-discovery-storage-redis" }
 sdkwork-discovery-storage-sqlite = { path = "crates/sdkwork-discovery-storage-sqlite" }
-sdkwork-database-config = { path = "../sdkwork-database/crates/sdkwork-database-config" }
-sdkwork-database-sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx" }
+sdkwork-database-config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
+sdkwork-database-lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
+sdkwork-database-spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }
+sdkwork-database-sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
+sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
+sdkwork_database_lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
+sdkwork_database_spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }
+sdkwork_database_sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
