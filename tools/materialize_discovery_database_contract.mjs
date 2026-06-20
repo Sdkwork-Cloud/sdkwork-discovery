@@ -44,6 +44,7 @@ const schemaYaml = [
   'compliance_level: L2',
   'engines:',
   '  - postgres',
+  '  - sqlite',
   'table_prefix: discovery_',
   'tables:',
   ...tableNames.map(
@@ -66,6 +67,8 @@ const manifestPath = path.join(root, 'database/database.manifest.json');
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 manifest.contractVersion = '1.0.0';
 manifest.lifecycle.autoMigrate = true;
+manifest.engines = ['postgres', 'sqlite'];
+manifest.defaultEngine = 'postgres';
 fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
 process.stdout.write(`materialized ${tableNames.length} tables into discovery database contract\n`);

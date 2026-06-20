@@ -13,6 +13,9 @@ pnpm run db:materialize:contract
 pnpm run db:validate
 ```
 
-Legacy SQL: `crates/sdkwork-discovery-storage-postgres/migrations/*.sql` → `database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql`
+Legacy SQL:
+
+- PostgreSQL: `crates/sdkwork-discovery-storage-postgres/migrations/*.sql` → `database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql`
+- SQLite: `crates/sdkwork-discovery-storage-sqlite/migrations/*.sql` → `database/ddl/baseline/sqlite/0001_discovery_legacy_baseline.sql`
 
 Runtime bootstrap: `sdkwork-discovery-database-host` via `PostgresDiscoveryStore::apply_initial_schema()` when `apply_initial_schema = true`.
