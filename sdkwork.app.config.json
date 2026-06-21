@@ -27,7 +27,8 @@
     "grantMode": "current",
     "platform": "WEB",
     "appId": null,
-    "organizationId": null,
+    "tenantId": "100001",
+    "organizationId": "0",
     "accessTokenPermissionScope": [
       "iam.users.read",
       "iam.organizations.read",
