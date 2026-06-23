@@ -364,8 +364,11 @@ fn parse_config_permission(value: &str) -> DiscoveryResult<ConfigPermission> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_trace_id_from_traceparent, request_id_from_metadata, validate_request_id};
-    use sdkwork_discovery_contract::DiscoveryError;
+    use super::{
+        caller_from_metadata, parse_trace_id_from_traceparent, request_id_from_metadata,
+        validate_request_id, RpcContextPolicy,
+    };
+    use sdkwork_discovery_contract::{DiscoveryError, RegistryPermission};
     use tonic::metadata::MetadataMap;
 
     #[test]
@@ -429,5 +432,45 @@ mod tests {
         assert!(validate_request_id("req-gateway-1").is_ok());
         assert!(validate_request_id(&"x".repeat(128)).is_ok());
         assert!(validate_request_id(&"x".repeat(129)).is_err());
+    }
+
+    #[test]
+    fn caller_accepts_unsigned_local_context_without_dual_tokens_when_enabled() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert("x-sdkwork-subject-id", "service-1".parse().unwrap());
+        metadata.insert("x-sdkwork-registry-permissions", "write".parse().unwrap());
+
+        let caller = caller_from_metadata(
+            &metadata,
+            RpcContextPolicy {
+                allow_unsigned_local_context: true,
+                service_token_verifier: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(caller.subject_id, "service-1");
+        assert!(caller.has_registry_permission(RegistryPermission::Write));
+    }
+
+    #[test]
+    fn caller_rejects_missing_dual_tokens_when_unsigned_context_disabled() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert("x-sdkwork-subject-id", "service-1".parse().unwrap());
+        metadata.insert("x-sdkwork-registry-permissions", "write".parse().unwrap());
+
+        let error = caller_from_metadata(
+            &metadata,
+            RpcContextPolicy {
+                allow_unsigned_local_context: false,
+                service_token_verifier: None,
+            },
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, DiscoveryError::Unauthenticated(_)));
+        let message = error.to_string();
+        assert!(message.contains("authorization"));
+        assert!(message.contains("access-token"));
     }
 }

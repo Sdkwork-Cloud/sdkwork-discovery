@@ -270,6 +270,7 @@
       "pnpm.cmd topology:matrix",
       "pnpm.cmd test:topology-baggage",
       "pnpm.cmd run test:package-contract",
+      "pnpm.cmd run test:sdk-typescript-helpers",
       "pnpm.cmd verify",
       "pnpm.cmd run verify:sdk-rust",
       "pnpm.cmd run verify:sdk-typescript",
