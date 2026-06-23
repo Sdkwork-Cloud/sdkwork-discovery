@@ -46,6 +46,8 @@ async fn redis_delegate_registers_and_discovers_instances_without_external_serve
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_500,
         )

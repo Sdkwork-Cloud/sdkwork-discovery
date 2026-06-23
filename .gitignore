@@ -17,3 +17,4 @@ sdks/**/node_modules/
 *.sqlite-journal
 *.db
 *.log
+/dist/

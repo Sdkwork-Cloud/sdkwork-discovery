@@ -255,7 +255,16 @@ async function packageServer(context) {
 }
 
 function runCargoBuild(context) {
-  const args = ['build', '--release', '-p', 'sdkwork-discovery-service-host', '--bin', BINARY_NAME];
+  const args = [
+    'build',
+    '--release',
+    '-p',
+    'sdkwork-discovery-service-host',
+    '--bin',
+    BINARY_NAME,
+    '--features',
+    'prometheus',
+  ];
   if (context.rustTarget) {
     args.push('--target', context.rustTarget);
   }
@@ -263,9 +272,15 @@ function runCargoBuild(context) {
 }
 
 async function copyConfigExamples(stageRoot) {
-  const exampleConfig = path.join(appRoot, 'etc', 'discovery.example.toml');
-  if (existsSync(exampleConfig)) {
-    await copyFile(exampleConfig, path.join(stageRoot, 'config', 'discovery.example.toml'));
+  const examples = [
+    'discovery.example.toml',
+    'discovery.production.example.toml',
+  ];
+  for (const fileName of examples) {
+    const exampleConfig = path.join(appRoot, 'etc', fileName);
+    if (existsSync(exampleConfig)) {
+      await copyFile(exampleConfig, path.join(stageRoot, 'config', fileName));
+    }
   }
 }
 
@@ -287,18 +302,33 @@ Package: ${context.packageId}
 Version: ${context.version}
 Target: ${context.platform}/${context.architecture}
 
-## Start
+## Configure
 
-Copy \`config/discovery.example.toml\` to a host-local protected config file, then start the service host:
+1. Apply database migrations before first production start (\`pnpm db:migrate\` from a workspace checkout, or your deployment pipeline equivalent).
+2. Copy \`config/discovery.production.example.toml\` to a host-local protected path such as \`/etc/sdkwork/discovery/production.toml\`.
+3. Mount secret files referenced by the config (TLS certs, service-token HMAC secret, database password file).
+4. Export runtime env:
 
 \`\`\`sh
 export SDKWORK_DISCOVERY_CONFIG_FILE=/etc/sdkwork/discovery/production.toml
+export SDKWORK_DISCOVERY_METRICS_BIND=0.0.0.0:9090
+\`\`\`
+
+Development-only smoke tests may use \`config/discovery.example.toml\` on loopback with unsigned local context enabled.
+
+## Start
+
+\`\`\`sh
 ${binaryPath}
 \`\`\`
 
-## Health
+The process handles SIGTERM and Ctrl+C for graceful shutdown: health status is cleared, then the gRPC server stops.
 
-When \`[server].enable_health = true\`, use the tonic health service on the configured gRPC bind.
+## Health and metrics
+
+- gRPC health: enabled when \`[server].enable_health = true\` on the configured bind.
+- Prometheus: this package is built with the \`prometheus\` feature. Scrape \`SDKWORK_DISCOVERY_METRICS_BIND\` (default \`127.0.0.1:9090\`).
+- Process gauge: \`discovery_health_status\` (1=serving, 0=shutting down).
 `;
 }
 
@@ -313,7 +343,16 @@ function createInstallManifest(context) {
     format: context.format,
     version: context.version,
     binary: `bin/${context.binaryName}`,
-    configExamples: ['config/discovery.example.toml'],
+    configExamples: [
+      'config/discovery.example.toml',
+      'config/discovery.production.example.toml',
+    ],
+    observability: {
+      prometheusFeature: true,
+      metricsBindEnv: 'SDKWORK_DISCOVERY_METRICS_BIND',
+      defaultMetricsBind: '127.0.0.1:9090',
+      healthGauge: 'discovery_health_status',
+    },
     grpcSurfaces: ['application.public-ingress', 'operations.control-ingress'],
   };
 }
@@ -363,6 +402,8 @@ async function validateArchive(context) {
   const requiredEntries = [
     `${context.stageName}/bin/${context.binaryName}`,
     `${context.stageName}/config/discovery.example.toml`,
+    `${context.stageName}/config/discovery.production.example.toml`,
+    `${context.stageName}/INSTALL.md`,
     `${context.stageName}/install-manifest.json`,
     `${context.stageName}/checksums.sha256`,
     `${context.stageName}/README.md`,

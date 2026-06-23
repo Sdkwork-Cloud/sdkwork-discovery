@@ -1,0 +1,12 @@
+DROP INDEX IF EXISTS idx_discovery_watch_event_scope_revision;
+DROP TABLE IF EXISTS discovery_watch_event;
+DROP INDEX IF EXISTS idx_discovery_idempotency_record_resource;
+DROP TABLE IF EXISTS discovery_idempotency_record;
+DROP INDEX IF EXISTS idx_discovery_config_release_effective;
+DROP TABLE IF EXISTS discovery_config_release;
+DROP INDEX IF EXISTS idx_discovery_config_draft_scope;
+DROP TABLE IF EXISTS discovery_config_draft;
+DROP INDEX IF EXISTS idx_discovery_service_instance_expiry;
+DROP INDEX IF EXISTS idx_discovery_service_instance_discover;
+DROP TABLE IF EXISTS discovery_service_instance;
+DROP TABLE IF EXISTS discovery_revision_counter;

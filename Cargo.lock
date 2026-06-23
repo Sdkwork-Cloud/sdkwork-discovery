@@ -2047,6 +2047,8 @@ dependencies = [
  "reqwest",
  "sdkwork-discovery-contract",
  "tokio",
+ "tonic",
+ "tonic-health",
  "tracing",
 ]
 

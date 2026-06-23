@@ -110,11 +110,13 @@ message DiscoverInstancesRequest {
   string protocol = 5;
   repeated sdkwork.discovery.common.v1.LabelFilter label_filters = 20;
   sdkwork.discovery.common.v1.DiscoverSortBy sort_by = 21;
+  sdkwork.discovery.common.v1.PageRequest page = 30;
 }
 
 message DiscoverInstancesResponse {
   repeated sdkwork.discovery.common.v1.ServiceInstance instances = 1;
   sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+  sdkwork.discovery.common.v1.PageResponse page = 3;
 }
 
 message WatchServiceRequest {

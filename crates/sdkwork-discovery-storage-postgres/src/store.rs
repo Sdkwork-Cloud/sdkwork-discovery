@@ -7,8 +7,8 @@ use std::sync::OnceLock;
 use crate::database_bootstrap::{
     connect_postgres_pool, lazy_postgres_pool, postgres_database_config,
 };
+use crate::migration;
 use crate::options::PostgresConnectionOptions;
-use crate::{migration};
 
 #[derive(Debug)]
 pub struct PostgresDiscoveryStore {
@@ -52,9 +52,7 @@ impl PostgresDiscoveryStore {
         let database_pool = connect_postgres_pool(self.database_config.clone()).await?;
         crate::bootstrap::bootstrap_discovery_database(database_pool)
             .await
-            .map_err(|error| {
-                sdkwork_discovery_contract::DiscoveryError::InvalidConfig(error)
-            })?;
+            .map_err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig)?;
         Ok(())
     }
 

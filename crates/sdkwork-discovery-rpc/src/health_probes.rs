@@ -5,6 +5,7 @@ use sdkwork_discovery_contract::{
 use sdkwork_discovery_core::DiscoveryControlPlane;
 use sdkwork_discovery_health_checker::{check_health, HealthCheckProbe as CheckerProbe};
 use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore};
+use tracing::warn;
 
 pub async fn run_health_checks<S>(control_plane: &mut DiscoveryControlPlane<S>, now_ms: u64)
 where
@@ -16,7 +17,10 @@ where
         .await
     {
         Ok(instances) => instances,
-        Err(_) => return,
+        Err(error) => {
+            warn!(error = %error, "failed to list instances for health checks");
+            return;
+        }
     };
 
     for instance in instances {
@@ -39,7 +43,7 @@ where
         }
         state.last_check_ms = now_ms;
 
-        let _ = control_plane
+        if let Err(error) = control_plane
             .store_mut()
             .update_health_check_state(
                 &instance.namespace,
@@ -48,12 +52,22 @@ where
                 &instance.instance_id,
                 state.clone(),
             )
-            .await;
+            .await
+        {
+            warn!(
+                namespace = %instance.namespace,
+                environment = %instance.environment,
+                service_name = %instance.service_name,
+                instance_id = %instance.instance_id,
+                error = %error,
+                "failed to persist health check state"
+            );
+        }
 
         if state.is_unhealthy(&config) && instance.status.is_discoverable() {
             let caller = CallerContext::new("discovery-health-checker")
                 .with_registry_permission(RegistryPermission::Write);
-            let _ = control_plane
+            if let Err(error) = control_plane
                 .report_instance_status(
                     &caller,
                     ReportInstanceStatusCommand {
@@ -66,11 +80,20 @@ where
                         expected_revision: None,
                     },
                 )
-                .await;
+                .await
+            {
+                warn!(
+                    namespace = %instance.namespace,
+                    service_name = %instance.service_name,
+                    instance_id = %instance.instance_id,
+                    error = %error,
+                    "failed to mark unhealthy instance as not serving"
+                );
+            }
         } else if state.is_healthy(&config) && !instance.status.is_discoverable() {
             let caller = CallerContext::new("discovery-health-checker")
                 .with_registry_permission(RegistryPermission::Write);
-            let _ = control_plane
+            if let Err(error) = control_plane
                 .report_instance_status(
                     &caller,
                     ReportInstanceStatusCommand {
@@ -83,7 +106,13 @@ where
                         expected_revision: None,
                     },
                 )
-                .await;
+                .await
+            {
+                warn!(
+                    error = %error,
+                    "failed to restore healthy instance to serving"
+                );
+            }
         }
     }
 }

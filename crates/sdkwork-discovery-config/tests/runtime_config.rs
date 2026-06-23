@@ -1572,3 +1572,37 @@ fn unsupported_storage_provider_is_rejected() {
 
     assert!(error.to_string().contains("storage provider"));
 }
+
+#[test]
+fn deployment_profile_defaults_to_standalone() {
+    let config = DiscoveryRuntimeConfig::from_toml_str(&minimal_config("dev", None)).unwrap();
+
+    assert_eq!(
+        config.runtime.deployment_profile,
+        sdkwork_discovery_contract::RuntimeDeploymentProfile::Standalone
+    );
+}
+
+#[test]
+fn hosting_env_overlay_maps_to_deployment_profile() {
+    let mut env = BTreeMap::new();
+    env.insert(
+        "SDKWORK_DISCOVERY_HOSTING".to_string(),
+        "cloud-hosted".to_string(),
+    );
+
+    let config =
+        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
+
+    assert_eq!(
+        config.runtime.deployment_profile,
+        sdkwork_discovery_contract::RuntimeDeploymentProfile::Cloud
+    );
+}
+
+#[test]
+fn production_example_config_passes_policy_validation() {
+    let toml = include_str!("../../../etc/discovery.production.example.toml");
+    DiscoveryRuntimeConfig::from_toml_str(toml)
+        .expect("production example config must pass policy validation");
+}

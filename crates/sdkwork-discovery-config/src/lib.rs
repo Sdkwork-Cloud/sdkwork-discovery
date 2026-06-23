@@ -23,5 +23,6 @@ pub use model::StorageRole;
 pub use model::StorageTransportConfig;
 pub use model::WatchConfig;
 pub use sdkwork_discovery_contract::RuntimeDeploymentMode;
+pub use sdkwork_discovery_contract::RuntimeDeploymentProfile;
 pub use sdkwork_discovery_contract::RuntimeEnvironment;
 pub use sdkwork_discovery_contract::RuntimeTarget;

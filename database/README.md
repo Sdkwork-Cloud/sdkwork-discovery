@@ -11,11 +11,22 @@ Canonical lifecycle assets for `sdkwork-discovery` per `DATABASE_FRAMEWORK_SPEC.
 ```bash
 pnpm run db:materialize:contract
 pnpm run db:validate
+pnpm run db:migrate
+pnpm run db:status
 ```
 
-Legacy SQL:
+## Migrations
 
-- PostgreSQL: `crates/sdkwork-discovery-storage-postgres/migrations/*.sql` → `database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql`
-- SQLite: `crates/sdkwork-discovery-storage-sqlite/migrations/*.sql` → `database/ddl/baseline/sqlite/0001_discovery_legacy_baseline.sql`
+Authoritative migration SQL lives under:
 
-Runtime bootstrap: `sdkwork-discovery-database-host` via `PostgresDiscoveryStore::apply_initial_schema()` when `apply_initial_schema = true`.
+- `database/migrations/postgres/`
+- `database/migrations/sqlite/`
+
+Crate-local `crates/sdkwork-discovery-storage-*/migrations/` paths are deprecated. Storage crates load SQL through `include_str!` from `database/migrations/`.
+
+Legacy baselines are preserved under `database/ddl/baseline/` for drift review only.
+
+## Runtime bootstrap
+
+- `sdkwork-discovery-database-host` integrates `sdkwork-database-lifecycle` for init/migrate when enabled by deployment policy.
+- `apply_initial_schema = true` is allowed only outside production. Production deployments must run migrations through the database CLI or pipeline before serving traffic.

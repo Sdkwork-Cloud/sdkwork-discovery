@@ -1,6 +1,11 @@
 pub const RPC_SDK_PROTOCOL: &str = "rpc";
 pub const GENERATED_PROTO_ROOT: &str = "generated";
 
+pub mod deadline;
+pub mod idempotency;
+pub mod pagination;
+pub mod tracing;
+
 pub mod sdkwork {
     pub mod discovery {
         pub mod common {

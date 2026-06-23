@@ -48,6 +48,9 @@ The safe process env overlay supports lifecycle/runtime fields, topology surface
 - Provider-specific Redis/etcd/Consul overlays: `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_HOST`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_PORT`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_DATABASE`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_USERNAME`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_PASSWORD_FILE`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_TLS_ENABLED`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_CONNECT_TIMEOUT_MS`, `SDKWORK_DISCOVERY_STORAGE_<PROVIDER>_MAX_CONNECTIONS`
 - `SDKWORK_DISCOVERY_WATCH_ENABLED`, `SDKWORK_DISCOVERY_WATCH_MAX_STREAMS`, `SDKWORK_DISCOVERY_WATCH_EVENT_BUFFER_SIZE`, `SDKWORK_DISCOVERY_WATCH_HEARTBEAT_INTERVAL_MS`, `SDKWORK_DISCOVERY_WATCH_DURABLE_POLL_INTERVAL_MS`, `SDKWORK_DISCOVERY_WATCH_DURABLE_REPLAY_BATCH_SIZE`
 - `SDKWORK_DISCOVERY_RPC_AUTH_MODE`, `SDKWORK_DISCOVERY_RPC_ALLOW_UNSIGNED_LOCAL_CONTEXT`, `SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_HMAC_SECRET_FILE`, `SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_ISSUER`, `SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_AUDIENCE`, `SDKWORK_DISCOVERY_RPC_SERVICE_TOKEN_MAX_TTL_SECONDS`, `SDKWORK_DISCOVERY_RPC_TLS_ENABLED`, `SDKWORK_DISCOVERY_RPC_MTLS_ENABLED`, `SDKWORK_DISCOVERY_RPC_REFLECTION_ENABLED`, `SDKWORK_DISCOVERY_RPC_HEALTH_ENABLED`
+- `SDKWORK_DISCOVERY_METRICS_BIND` when the server binary is built with the `prometheus` feature (enabled in release packages). Defaults to `127.0.0.1:9090`; production deployments typically set `0.0.0.0:9090` for in-cluster scraping.
+
+Production-oriented config template: `etc/discovery.production.example.toml`. Development template: `etc/discovery.example.toml`.
 
 TLS and mTLS are configured through secret-file references under `[security]` or the matching private process env overlay:
 
@@ -68,8 +71,8 @@ Service-token mode uses `authorization: Bearer <sdkwork-discovery-v1 token>` plu
 Runtime storage is selected by typed config under `[storage]`. Supported provider names are:
 
 - `memory`: deterministic local/test adapter.
-- `postgres`: durable PostgreSQL adapter for registry, config, and watch storage. Apply `crates/sdkwork-discovery-storage-postgres/migrations/202606090001_initial_discovery_schema.sql` before serving traffic, or call the adapter migration entrypoint from an async runtime-owned bootstrap.
-- `sqlite`: durable local/test/small single-node adapter for registry, config, and watch storage. Apply `crates/sdkwork-discovery-storage-sqlite/migrations/202606090001_initial_discovery_sqlite_schema.sql` before serving traffic, or set `apply_initial_schema = true` only in non-production bootstrap.
+- `postgres`: durable PostgreSQL adapter for registry, config, and watch storage. Apply `database/migrations/postgres/` through `pnpm db:migrate` or the sdkwork-database CLI before serving traffic.
+- `sqlite`: durable local/test/small single-node adapter for registry, config, and watch storage. Apply `database/migrations/sqlite/` through `pnpm db:migrate` before serving traffic, or set `apply_initial_schema = true` only in non-production bootstrap.
 - `redis`: durable Redis-backed registry, config, and watch storage using the `sdkwork:discovery:v1` key namespace. Suitable for single-writer or restart recovery deployments; multi-writer clusters should prefer PostgreSQL or add external coordination.
 - `etcd`: distributed registry/watch configuration shape, fail-fast at product bootstrap until the adapter lands.
 - `consul`: distributed registry/watch configuration shape, fail-fast at product bootstrap until the adapter lands.

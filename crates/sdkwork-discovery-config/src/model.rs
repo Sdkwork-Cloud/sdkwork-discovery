@@ -1,5 +1,6 @@
 use sdkwork_discovery_contract::{
-    DiscoveryError, DiscoveryResult, RuntimeDeploymentMode, RuntimeEnvironment, RuntimeTarget,
+    DiscoveryError, DiscoveryResult, RuntimeDeploymentMode, RuntimeDeploymentProfile,
+    RuntimeEnvironment, RuntimeTarget,
 };
 use serde::Deserialize;
 
@@ -19,6 +20,7 @@ pub struct DiscoveryRuntimeConfig {
 pub struct RuntimeConfig {
     pub environment: RuntimeEnvironment,
     pub config_profile: Option<String>,
+    pub deployment_profile: RuntimeDeploymentProfile,
     pub deployment_mode: RuntimeDeploymentMode,
     pub runtime_target: RuntimeTarget,
 }

@@ -1,2 +1,5 @@
-pub const INITIAL_SCHEMA_SQL: &str =
-    include_str!("../migrations/202606090001_initial_discovery_sqlite_schema.sql");
+pub const INITIAL_SCHEMA_SQL: &str = concat!(
+    include_str!("../../../database/migrations/sqlite/0001_initial_discovery_schema.up.sql"),
+    "\n",
+    include_str!("../../../database/migrations/sqlite/0002_add_health_check_columns.up.sql"),
+);

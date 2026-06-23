@@ -9,7 +9,8 @@ pub use sdkwork_discovery_database_host::{
 
 pub type DiscoveryDatabasePool = DatabasePool;
 
-pub async fn connect_discovery_database_pool_from_env() -> Result<DiscoveryDatabasePool, PoolError> {
+pub async fn connect_discovery_database_pool_from_env() -> Result<DiscoveryDatabasePool, PoolError>
+{
     let config = DatabaseConfig::from_env("DISCOVERY")?;
     create_pool_from_config(config).await
 }

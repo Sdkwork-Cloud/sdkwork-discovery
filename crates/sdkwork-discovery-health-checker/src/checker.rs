@@ -2,6 +2,9 @@ use std::time::Duration;
 
 use tokio::net::TcpStream;
 use tokio::time::timeout;
+use tonic::transport::Channel;
+use tonic_health::pb::health_client::HealthClient;
+use tonic_health::pb::HealthCheckRequest;
 use tracing::{debug, warn};
 
 use sdkwork_discovery_contract::HealthCheckProbe;
@@ -105,18 +108,47 @@ async fn check_http(
 
 async fn check_grpc(endpoint: &str, service_name: &str, timeout_ms: u64) -> Result<(), String> {
     let duration = Duration::from_millis(timeout_ms);
-    match timeout(duration, TcpStream::connect(endpoint)).await {
-        Ok(Ok(_)) => {
-            debug!(endpoint = %endpoint, service = %service_name, "gRPC health check passed");
-            Ok(())
+    let uri = format!("http://{endpoint}");
+    let channel = timeout(
+        duration,
+        Channel::from_shared(uri.clone())
+            .map_err(|error| format!("invalid gRPC endpoint {uri}: {error}"))?
+            .connect_timeout(duration)
+            .timeout(duration)
+            .connect(),
+    )
+    .await
+    .map_err(|_| format!("gRPC connection to {endpoint} timed out"))?
+    .map_err(|error| format!("gRPC connection failed: {error}"))?;
+
+    let mut client = HealthClient::new(channel);
+    let request = tonic::Request::new(HealthCheckRequest {
+        service: service_name.to_string(),
+    });
+
+    match timeout(duration, client.check(request)).await {
+        Ok(Ok(response)) => {
+            let status = response.into_inner().status;
+            if status == tonic_health::pb::health_check_response::ServingStatus::Serving as i32 {
+                debug!(endpoint = %endpoint, service = %service_name, "gRPC health check passed");
+                Ok(())
+            } else {
+                warn!(
+                    endpoint = %endpoint,
+                    service = %service_name,
+                    status = status,
+                    "gRPC health check reported non-serving status"
+                );
+                Err(format!("gRPC health status {status} is not serving"))
+            }
         }
-        Ok(Err(e)) => {
-            warn!(endpoint = %endpoint, error = %e, "gRPC health check failed");
-            Err(format!("gRPC connection failed: {e}"))
+        Ok(Err(error)) => {
+            warn!(endpoint = %endpoint, service = %service_name, error = %error, "gRPC health check failed");
+            Err(format!("gRPC health RPC failed: {error}"))
         }
         Err(_) => {
-            warn!(endpoint = %endpoint, timeout_ms = timeout_ms, "gRPC health check timed out");
-            Err("gRPC connection timed out".to_string())
+            warn!(endpoint = %endpoint, service = %service_name, timeout_ms = timeout_ms, "gRPC health check timed out");
+            Err("gRPC health check timed out".to_string())
         }
     }
 }

@@ -712,8 +712,7 @@ fn validate_transport_config(config: &DiscoveryRpcServerConfig) -> DiscoveryResu
 }
 
 fn base_server(config: &DiscoveryRpcServerConfig) -> DiscoveryResult<Server> {
-    let _deadline_ms = config.default_deadline_ms;
-    let server = Server::builder();
+    let server = Server::builder().timeout(Duration::from_millis(config.default_deadline_ms));
 
     if !config.require_tls {
         return Ok(server);

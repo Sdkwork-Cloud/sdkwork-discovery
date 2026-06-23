@@ -40,6 +40,8 @@ fn discovery_query() -> DiscoverInstancesQuery {
         protocol: Some("grpc".to_string()),
         label_filters: vec![],
         sort_by: None,
+        page_size: 0,
+        page_token: None,
     }
 }
 
@@ -637,6 +639,8 @@ async fn list_services_groups_non_expired_instances_by_service_name() {
             ListServicesQuery {
                 namespace: "sdkwork".to_string(),
                 environment: "development".to_string(),
+                page_size: 0,
+                page_token: None,
             },
             2_500,
         )
@@ -647,6 +651,58 @@ async fn list_services_groups_non_expired_instances_by_service_name() {
     assert_eq!(services.services.len(), 1);
     assert_eq!(services.services[0].service_name, "sdkwork-drive-product");
     assert_eq!(services.services[0].active_instance_count, 1);
+}
+
+#[tokio::test]
+async fn list_services_paginates_sorted_service_names() {
+    let mut store = MemoryDiscoveryStore::new();
+    store
+        .register_instance(register_command("grpc://127.0.0.1:50051", 1_000, 30))
+        .await
+        .unwrap();
+    let mut second = register_command("grpc://127.0.0.1:50052", 1_000, 30);
+    second.service_name = "sdkwork-config-product".to_string();
+    store.register_instance(second).await.unwrap();
+    let mut third = register_command("grpc://127.0.0.1:50053", 1_000, 30);
+    third.service_name = "sdkwork-iam-product".to_string();
+    store.register_instance(third).await.unwrap();
+
+    let first = store
+        .list_services(
+            ListServicesQuery {
+                namespace: "sdkwork".to_string(),
+                environment: "development".to_string(),
+                page_size: 2,
+                page_token: None,
+            },
+            2_500,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(first.services.len(), 2);
+    assert_eq!(first.services[0].service_name, "sdkwork-config-product");
+    assert_eq!(
+        first.next_page_token.as_deref(),
+        Some("sdkwork-drive-product")
+    );
+
+    let second_page = store
+        .list_services(
+            ListServicesQuery {
+                page_token: first.next_page_token.clone(),
+                namespace: "sdkwork".to_string(),
+                environment: "development".to_string(),
+                page_size: 2,
+            },
+            2_500,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(second_page.services.len(), 1);
+    assert_eq!(second_page.services[0].service_name, "sdkwork-iam-product");
+    assert_eq!(second_page.next_page_token, None);
 }
 
 fn assert_invalid_argument_contains(error: DiscoveryError, field: &str) {

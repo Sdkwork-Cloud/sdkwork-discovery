@@ -20,9 +20,13 @@ use crate::context::{
     config_reader_from_metadata, idempotency_from_metadata, registry_reader_from_metadata,
     request_id_from_metadata, trace_id_from_metadata,
 };
-use crate::error::map_discovery_error_to_status;
+use crate::error::{
+    attach_rpc_correlation_metadata, grpc_status_code_for_discovery_error,
+    map_discovery_error_to_rpc_status, map_discovery_error_to_status,
+};
 use crate::metrics::{
-    decrement_active_streams, increment_active_streams, record_auth_failure, RpcMetrics,
+    decrement_active_streams, increment_active_streams, record_auth_failure, record_cancellation,
+    RpcMetrics, RpcMetricsGuard,
 };
 use crate::watch::{event_matches_config_watch, event_matches_service_watch, WatchEventSubscriber};
 
@@ -172,16 +176,19 @@ where
         &self,
         request: Request<internal_proto::RegisterInstanceRequest>,
     ) -> Result<Response<internal_proto::RegisterInstanceResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "RegisterInstance",
             "discovery.registry.instances.register",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -189,10 +196,10 @@ where
                     "RegistryService",
                     "RegisterInstance",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
         let command = codec::register_instance_command(request.into_inner(), codec::now_millis())
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -230,11 +237,14 @@ where
                     method = "RegisterInstance",
                     operation_id = "discovery.registry.instances.register",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "instance registration failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -253,16 +263,19 @@ where
         &self,
         request: Request<internal_proto::BatchRegisterInstancesRequest>,
     ) -> Result<Response<internal_proto::BatchRegisterInstancesResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "BatchRegisterInstances",
             "discovery.registry.instances.batch_register",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -270,11 +283,11 @@ where
                     "RegistryService",
                     "BatchRegisterInstances",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
         let commands =
             codec::batch_register_instances_commands(request.into_inner(), codec::now_millis())
-                .map_err(map_discovery_error_to_status)?;
+                .map_err(map_rpc_err)?;
         match self
             .runtime
             .batch_register_instances(caller, commands)
@@ -287,8 +300,11 @@ where
                 )))
             }
             Err(error) => {
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -307,16 +323,19 @@ where
         &self,
         request: Request<internal_proto::RenewLeaseRequest>,
     ) -> Result<Response<internal_proto::RenewLeaseResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "RenewLease",
             "discovery.registry.leases.renew",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -324,10 +343,10 @@ where
                     "RegistryService",
                     "RenewLease",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
         let command = codec::renew_lease_command(request.into_inner(), codec::now_millis())
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -365,11 +384,14 @@ where
                     method = "RenewLease",
                     operation_id = "discovery.registry.leases.renew",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "lease renewal failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -388,16 +410,19 @@ where
         &self,
         request: Request<internal_proto::DeregisterInstanceRequest>,
     ) -> Result<Response<internal_proto::DeregisterInstanceResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "DeregisterInstance",
             "discovery.registry.instances.deregister",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -405,10 +430,10 @@ where
                     "RegistryService",
                     "DeregisterInstance",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
-        let request = codec::deregister_instance_request(request.into_inner())
-            .map_err(map_discovery_error_to_status)?;
+        let request =
+            codec::deregister_instance_request(request.into_inner()).map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -461,11 +486,14 @@ where
                     method = "DeregisterInstance",
                     operation_id = "discovery.registry.instances.deregister",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "instance deregistration failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -484,16 +512,19 @@ where
         &self,
         request: Request<internal_proto::ReportInstanceStatusRequest>,
     ) -> Result<Response<internal_proto::ReportInstanceStatusResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "ReportInstanceStatus",
             "discovery.registry.instances.status.report",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -501,10 +532,10 @@ where
                     "RegistryService",
                     "ReportInstanceStatus",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
         let command = codec::report_status_command(request.into_inner(), codec::now_millis())
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -541,11 +572,14 @@ where
                     method = "ReportInstanceStatus",
                     operation_id = "discovery.registry.instances.status.report",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "instance status report failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -555,7 +589,9 @@ where
         fields(
             package = "sdkwork.discovery.internal.v1",
             service = "RegistryService",
-            method = "RetrieveInstance"
+            method = "RetrieveInstance",
+            operation_id = "discovery.registry.instances.retrieve",
+            api_surface = "rpc"
         )
     )]
     async fn retrieve_instance(
@@ -564,28 +600,95 @@ where
     ) -> Result<Response<internal_proto::RetrieveInstanceResponse>, Status> {
         let request_id =
             request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
+            "sdkwork.discovery.internal.v1",
+            "RegistryService",
+            "RetrieveInstance",
+            "discovery.registry.instances.retrieve",
+        );
         let caller =
             registry_reader_from_metadata(request.metadata(), self.runtime.context_policy())
-                .map_err(map_discovery_error_to_status)?;
-        let query = codec::retrieve_instance_query(request.into_inner())
-            .map_err(map_discovery_error_to_status)?;
-        debug!(request_id = %request_id, subject_id = %caller.subject_id, "retrieving instance");
-        let instance = self
+                .map_err(|e| {
+                    record_auth_failure(
+                        "sdkwork.discovery.internal.v1",
+                        "RegistryService",
+                        "RetrieveInstance",
+                    );
+                    map_rpc_err(e)
+                })?;
+        let query = codec::retrieve_instance_query(request.into_inner()).map_err(map_rpc_err)?;
+        debug!(
+            request_id = %request_id,
+            trace_id = %trace_id,
+            subject_id = %caller.subject_id,
+            package = "sdkwork.discovery.internal.v1",
+            service = "RegistryService",
+            method = "RetrieveInstance",
+            operation_id = "discovery.registry.instances.retrieve",
+            "retrieving instance"
+        );
+        match self
             .runtime
             .retrieve_instance(caller, query, codec::now_millis())
             .await
-            .map_err(map_discovery_error_to_status)?
-            .ok_or_else(|| {
-                map_discovery_error_to_status(DiscoveryError::NotFound(
+        {
+            Ok(Some(instance)) => {
+                info!(
+                    request_id = %request_id,
+                    trace_id = %trace_id,
+                    package = "sdkwork.discovery.internal.v1",
+                    service = "RegistryService",
+                    method = "RetrieveInstance",
+                    operation_id = "discovery.registry.instances.retrieve",
+                    instance_id = %instance.instance_id,
+                    status = "OK",
+                    "instance retrieved"
+                );
+                metrics.record_success("OK");
+                Ok(Response::new(codec::retrieve_instance_response(
+                    instance, request_id, trace_id,
+                )))
+            }
+            Ok(None) => {
+                warn!(
+                    request_id = %request_id,
+                    trace_id = %trace_id,
+                    package = "sdkwork.discovery.internal.v1",
+                    service = "RegistryService",
+                    method = "RetrieveInstance",
+                    operation_id = "discovery.registry.instances.retrieve",
+                    status = "NOT_FOUND",
+                    "service instance not found"
+                );
+                metrics.record_error("NOT_FOUND", "not_found");
+                Err(map_rpc_err(DiscoveryError::NotFound(
                     "service instance not found".to_string(),
-                ))
-            })?;
-        info!(request_id = %request_id, instance_id = %instance.instance_id, "instance retrieved");
-        Ok(Response::new(codec::retrieve_instance_response(
-            instance, request_id, trace_id,
-        )))
+                )))
+            }
+            Err(error) => {
+                warn!(
+                    request_id = %request_id,
+                    trace_id = %trace_id,
+                    package = "sdkwork.discovery.internal.v1",
+                    service = "RegistryService",
+                    method = "RetrieveInstance",
+                    operation_id = "discovery.registry.instances.retrieve",
+                    error = %error,
+                    status = grpc_status_code_for_discovery_error(&error),
+                    "instance retrieval failed"
+                );
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
+            }
+        }
     }
 
     #[instrument(
@@ -602,16 +705,19 @@ where
         &self,
         request: Request<internal_proto::DiscoverInstancesRequest>,
     ) -> Result<Response<internal_proto::DiscoverInstancesResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "RegistryService",
             "DiscoverInstances",
             "discovery.registry.instances.discover",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -619,10 +725,9 @@ where
                     "RegistryService",
                     "DiscoverInstances",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
-        let query = codec::discover_instances_query(request.into_inner())
-            .map_err(map_discovery_error_to_status)?;
+        let query = codec::discover_instances_query(request.into_inner()).map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -664,11 +769,14 @@ where
                     method = "DiscoverInstances",
                     operation_id = "discovery.registry.instances.discover",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "instance discovery failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -696,16 +804,19 @@ where
         &self,
         request: Request<internal_proto::RetrieveEffectiveConfigRequest>,
     ) -> Result<Response<internal_proto::RetrieveEffectiveConfigResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "DiscoveryConfigService",
             "RetrieveEffectiveConfig",
             "discovery.config.effective.retrieve",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -713,10 +824,10 @@ where
                     "DiscoveryConfigService",
                     "RetrieveEffectiveConfig",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
-        let query = codec::retrieve_effective_config_query(request.into_inner())
-            .map_err(map_discovery_error_to_status)?;
+        let query =
+            codec::retrieve_effective_config_query(request.into_inner()).map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -753,11 +864,14 @@ where
                     method = "RetrieveEffectiveConfig",
                     operation_id = "discovery.config.effective.retrieve",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "effective config retrieval failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -776,20 +890,33 @@ where
         &self,
         request: Request<internal_proto::WatchConfigRequest>,
     ) -> Result<Response<Self::WatchConfigStream>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        if !self.config.enabled {
+            RpcMetrics::new(
+                "sdkwork.discovery.internal.v1",
+                "DiscoveryConfigService",
+                "WatchConfig",
+                "discovery.config.releases.watch",
+            )
+            .record_error("UNIMPLEMENTED", "config_watch_disabled");
+            return Err(attach_rpc_correlation_metadata(
+                Status::unimplemented("discovery config watch is disabled"),
+                &request_id,
+                &trace_id,
+            ));
+        }
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "DiscoveryConfigService",
             "WatchConfig",
             "discovery.config.releases.watch",
         );
-        if !self.config.enabled {
-            metrics.record_error("UNIMPLEMENTED", "config_watch_disabled");
-            return Err(Status::unimplemented("discovery config watch is disabled"));
-        }
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = config_reader_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -797,19 +924,15 @@ where
                     "DiscoveryConfigService",
                     "WatchConfig",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace)
-            .map_err(map_discovery_error_to_status)?;
-        codec::validate_required_field("environment", &request.environment)
-            .map_err(map_discovery_error_to_status)?;
-        codec::validate_required_field("application", &request.application)
-            .map_err(map_discovery_error_to_status)?;
+        codec::validate_required_field("namespace", &request.namespace).map_err(map_rpc_err)?;
+        codec::validate_required_field("environment", &request.environment).map_err(map_rpc_err)?;
+        codec::validate_required_field("application", &request.application).map_err(map_rpc_err)?;
         codec::validate_required_field("service_name", &request.service_name)
-            .map_err(map_discovery_error_to_status)?;
-        codec::validate_required_field("group", &request.group)
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
+        codec::validate_required_field("group", &request.group).map_err(map_rpc_err)?;
         let permit = self.acquire_stream_permit()?;
         let query = sdkwork_discovery_contract::WatchEventsQuery {
             namespace: request.namespace,
@@ -825,7 +948,7 @@ where
             .runtime
             .watch_config_events(caller.clone(), query.clone())
             .await
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         let (sender, receiver) = mpsc::channel(self.config.event_buffer_size);
         let heartbeat_interval = Duration::from_millis(self.config.heartbeat_interval_ms);
         let durable_poll_interval = Duration::from_millis(self.config.durable_poll_interval_ms);
@@ -879,19 +1002,22 @@ where
         &self,
         request: Request<backend_proto::CreateConfigDraftRequest>,
     ) -> Result<Response<backend_proto::CreateConfigDraftResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.backend.v3",
             "DiscoveryAdminService",
             "CreateConfigDraft",
             "discovery.config.drafts.create",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.drafts.create")
-                .map_err(map_discovery_error_to_status)?;
+                .map_err(map_rpc_err)?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -902,12 +1028,12 @@ where
                 "DiscoveryAdminService",
                 "CreateConfigDraft",
             );
-            map_discovery_error_to_status(e)
+            map_rpc_err(e)
         })?;
         let created_by = caller.subject_id.clone();
         let command =
             codec::create_config_draft_command(request.into_inner(), created_by, idempotency)
-                .map_err(map_discovery_error_to_status)?;
+                .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -948,11 +1074,14 @@ where
                     method = "CreateConfigDraft",
                     operation_id = "discovery.config.drafts.create",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "config draft creation failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -971,19 +1100,22 @@ where
         &self,
         request: Request<backend_proto::PublishConfigRequest>,
     ) -> Result<Response<backend_proto::PublishConfigResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.backend.v3",
             "DiscoveryAdminService",
             "PublishConfig",
             "discovery.config.releases.publish",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.releases.publish")
-                .map_err(map_discovery_error_to_status)?;
+                .map_err(map_rpc_err)?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -994,7 +1126,7 @@ where
                 "DiscoveryAdminService",
                 "PublishConfig",
             );
-            map_discovery_error_to_status(e)
+            map_rpc_err(e)
         })?;
         let published_by = caller.subject_id.clone();
         let command = codec::publish_config_command(
@@ -1003,7 +1135,7 @@ where
             codec::now_millis(),
             idempotency,
         )
-        .map_err(map_discovery_error_to_status)?;
+        .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1041,11 +1173,14 @@ where
                     method = "PublishConfig",
                     operation_id = "discovery.config.releases.publish",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "config publish failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -1064,19 +1199,22 @@ where
         &self,
         request: Request<backend_proto::RollbackConfigRequest>,
     ) -> Result<Response<backend_proto::RollbackConfigResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.backend.v3",
             "DiscoveryAdminService",
             "RollbackConfig",
             "discovery.config.releases.rollback",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.releases.rollback")
-                .map_err(map_discovery_error_to_status)?;
+                .map_err(map_rpc_err)?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -1087,7 +1225,7 @@ where
                 "DiscoveryAdminService",
                 "RollbackConfig",
             );
-            map_discovery_error_to_status(e)
+            map_rpc_err(e)
         })?;
         let rolled_back_by = caller.subject_id.clone();
         let command = codec::rollback_config_command(
@@ -1096,7 +1234,7 @@ where
             codec::now_millis(),
             idempotency,
         )
-        .map_err(map_discovery_error_to_status)?;
+        .map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1134,11 +1272,14 @@ where
                     method = "RollbackConfig",
                     operation_id = "discovery.config.releases.rollback",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "config rollback failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -1157,16 +1298,19 @@ where
         &self,
         request: Request<backend_proto::ListServicesRequest>,
     ) -> Result<Response<backend_proto::ListServicesResponse>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.backend.v3",
             "DiscoveryAdminService",
             "ListServices",
             "discovery.registry.services.list",
         );
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller = caller_from_metadata(request.metadata(), self.runtime.context_policy())
             .map_err(|e| {
                 record_auth_failure(
@@ -1174,10 +1318,9 @@ where
                     "DiscoveryAdminService",
                     "ListServices",
                 );
-                map_discovery_error_to_status(e)
+                map_rpc_err(e)
             })?;
-        let query = codec::list_services_query(request.into_inner())
-            .map_err(map_discovery_error_to_status)?;
+        let query = codec::list_services_query(request.into_inner()).map_err(map_rpc_err)?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1219,11 +1362,14 @@ where
                     method = "ListServices",
                     operation_id = "discovery.registry.services.list",
                     error = %error,
-                    status = "INTERNAL",
+                    status = grpc_status_code_for_discovery_error(&error),
                     "service listing failed"
                 );
-                metrics.record_error("INTERNAL", error.kind_string());
-                Err(map_discovery_error_to_status(error))
+                metrics.record_error(
+                    grpc_status_code_for_discovery_error(&error),
+                    error.kind_string(),
+                );
+                Err(map_rpc_err(error))
             }
         }
     }
@@ -1251,20 +1397,33 @@ where
         &self,
         request: Request<internal_proto::WatchServiceRequest>,
     ) -> Result<Response<Self::WatchServiceStream>, Status> {
-        let metrics = RpcMetrics::new(
+        let request_id =
+            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
+        let trace_id = trace_id_from_metadata(request.metadata())
+            .map_err(|error| map_discovery_error_to_rpc_status(error, &request_id, ""))?;
+        if !self.config.enabled {
+            RpcMetrics::new(
+                "sdkwork.discovery.internal.v1",
+                "DiscoveryWatchService",
+                "WatchService",
+                "discovery.registry.services.watch",
+            )
+            .record_error("UNIMPLEMENTED", "service_watch_disabled");
+            return Err(attach_rpc_correlation_metadata(
+                Status::unimplemented("discovery watch service is disabled"),
+                &request_id,
+                &trace_id,
+            ));
+        }
+        let map_rpc_err = |error: sdkwork_discovery_contract::DiscoveryError| {
+            map_discovery_error_to_rpc_status(error, &request_id, &trace_id)
+        };
+        let mut metrics = RpcMetricsGuard::new(
             "sdkwork.discovery.internal.v1",
             "DiscoveryWatchService",
             "WatchService",
             "discovery.registry.services.watch",
         );
-        if !self.config.enabled {
-            metrics.record_error("UNIMPLEMENTED", "service_watch_disabled");
-            return Err(Status::unimplemented("discovery watch service is disabled"));
-        }
-        let request_id =
-            request_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
-        let trace_id =
-            trace_id_from_metadata(request.metadata()).map_err(map_discovery_error_to_status)?;
         let caller =
             registry_reader_from_metadata(request.metadata(), self.runtime.context_policy())
                 .map_err(|e| {
@@ -1273,15 +1432,13 @@ where
                         "DiscoveryWatchService",
                         "WatchService",
                     );
-                    map_discovery_error_to_status(e)
+                    map_rpc_err(e)
                 })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace)
-            .map_err(map_discovery_error_to_status)?;
-        codec::validate_required_field("environment", &request.environment)
-            .map_err(map_discovery_error_to_status)?;
+        codec::validate_required_field("namespace", &request.namespace).map_err(map_rpc_err)?;
+        codec::validate_required_field("environment", &request.environment).map_err(map_rpc_err)?;
         codec::validate_required_field("service_name", &request.service_name)
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         let permit = self.acquire_stream_permit()?;
         let query = sdkwork_discovery_contract::WatchEventsQuery {
             namespace: request.namespace,
@@ -1297,7 +1454,7 @@ where
             .runtime
             .watch_registry_events(caller.clone(), query.clone())
             .await
-            .map_err(map_discovery_error_to_status)?;
+            .map_err(map_rpc_err)?;
         let (sender, receiver) = mpsc::channel(self.config.event_buffer_size);
         let heartbeat_interval = Duration::from_millis(self.config.heartbeat_interval_ms);
         let durable_poll_interval = Duration::from_millis(self.config.durable_poll_interval_ms);
@@ -1369,8 +1526,10 @@ where
                     &self.trace_id,
                 )
                 .await;
-                if send_service_watch_response(&self.sender, response).await {
-                    decrement_active_streams("service_watch");
+                if finish_watch_stream(
+                    "service_watch",
+                    send_service_watch_response(&self.sender, response).await,
+                ) {
                     return;
                 }
             }
@@ -1406,14 +1565,23 @@ where
                             }
                             Some(Ok(_)) => {}
                             Some(Err(error)) => {
-                                let _ = self
-                                    .sender
-                                    .send(Err(map_discovery_error_to_status(error)))
-                                    .await;
-                                decrement_active_streams("service_watch");
-                                return;
+                                if finish_watch_stream(
+                                    "service_watch",
+                                    send_watch_item(
+                                        &self.sender,
+                                        Err(map_discovery_error_to_rpc_status(
+                                            error,
+                                            &self.request_id,
+                                            &self.trace_id,
+                                        )),
+                                    )
+                                    .await,
+                                ) {
+                                    return;
+                                }
                             }
                             None => {
+                                record_service_watch_cancellation();
                                 decrement_active_streams("service_watch");
                                 return;
                             }
@@ -1440,8 +1608,10 @@ where
                             &self.request_id,
                             &self.trace_id,
                         );
-                        if self.sender.send(Ok(response)).await.is_err() {
-                            decrement_active_streams("service_watch");
+                        if finish_watch_stream(
+                            "service_watch",
+                            send_watch_item(&self.sender, Ok(response)).await,
+                        ) {
                             return;
                         }
                     }
@@ -1482,8 +1652,10 @@ where
                     continue;
                 }
                 let response = config_watch_response(event, &self.request_id, &self.trace_id);
-                if self.sender.send(Ok(response)).await.is_err() {
-                    decrement_active_streams("config_watch");
+                if finish_watch_stream(
+                    "config_watch",
+                    send_watch_item(&self.sender, Ok(response)).await,
+                ) {
                     return;
                 }
             }
@@ -1519,14 +1691,23 @@ where
                             }
                             Some(Ok(_)) => {}
                             Some(Err(error)) => {
-                                let _ = self
-                                    .sender
-                                    .send(Err(map_discovery_error_to_status(error)))
-                                    .await;
-                                decrement_active_streams("config_watch");
-                                return;
+                                if finish_watch_stream(
+                                    "config_watch",
+                                    send_watch_item(
+                                        &self.sender,
+                                        Err(map_discovery_error_to_rpc_status(
+                                            error,
+                                            &self.request_id,
+                                            &self.trace_id,
+                                        )),
+                                    )
+                                    .await,
+                                ) {
+                                    return;
+                                }
                             }
                             None => {
+                                record_config_watch_cancellation();
                                 decrement_active_streams("config_watch");
                                 return;
                             }
@@ -1553,8 +1734,10 @@ where
                             &self.request_id,
                             &self.trace_id,
                         );
-                        if self.sender.send(Ok(response)).await.is_err() {
-                            decrement_active_streams("config_watch");
+                        if finish_watch_stream(
+                            "config_watch",
+                            send_watch_item(&self.sender, Ok(response)).await,
+                        ) {
                             return;
                         }
                     }
@@ -1607,16 +1790,25 @@ where
                 }
                 let response =
                     service_watch_response(runtime, caller, event, request_id, trace_id).await;
-                if send_service_watch_response(sender, response).await {
+                if finish_watch_stream(
+                    "service_watch",
+                    send_service_watch_response(sender, response).await,
+                ) {
                     return true;
                 }
             }
             false
         }
-        Err(error) => {
-            let _ = sender.send(Err(map_discovery_error_to_status(error))).await;
-            true
-        }
+        Err(error) => finish_watch_stream(
+            "service_watch",
+            send_watch_item(
+                sender,
+                Err(map_discovery_error_to_rpc_status(
+                    error, request_id, trace_id,
+                )),
+            )
+            .await,
+        ),
     }
 }
 
@@ -1646,25 +1838,85 @@ where
                     continue;
                 }
                 let response = config_watch_response(event, request_id, trace_id);
-                if sender.send(Ok(response)).await.is_err() {
+                if finish_watch_stream("config_watch", send_watch_item(sender, Ok(response)).await)
+                {
                     return true;
                 }
             }
             false
         }
-        Err(error) => {
-            let _ = sender.send(Err(map_discovery_error_to_status(error))).await;
+        Err(error) => finish_watch_stream(
+            "config_watch",
+            send_watch_item(
+                sender,
+                Err(map_discovery_error_to_rpc_status(
+                    error, request_id, trace_id,
+                )),
+            )
+            .await,
+        ),
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum WatchStreamSendOutcome {
+    Continue,
+    StreamEnded,
+    ClientDisconnected,
+}
+
+fn record_service_watch_cancellation() {
+    record_cancellation(
+        "sdkwork.discovery.internal.v1",
+        "DiscoveryWatchService",
+        "WatchService",
+    );
+}
+
+fn record_config_watch_cancellation() {
+    record_cancellation(
+        "sdkwork.discovery.internal.v1",
+        "DiscoveryConfigService",
+        "WatchConfig",
+    );
+}
+
+fn finish_watch_stream(surface: &'static str, outcome: WatchStreamSendOutcome) -> bool {
+    match outcome {
+        WatchStreamSendOutcome::Continue => false,
+        WatchStreamSendOutcome::StreamEnded => {
+            decrement_active_streams(surface);
             true
         }
+        WatchStreamSendOutcome::ClientDisconnected => {
+            if surface == "service_watch" {
+                record_service_watch_cancellation();
+            } else {
+                record_config_watch_cancellation();
+            }
+            decrement_active_streams(surface);
+            true
+        }
+    }
+}
+
+async fn send_watch_item<T>(
+    sender: &mpsc::Sender<Result<T, Status>>,
+    response: Result<T, Status>,
+) -> WatchStreamSendOutcome {
+    let should_close_stream = response.is_err();
+    match sender.send(response).await {
+        Ok(()) if should_close_stream => WatchStreamSendOutcome::StreamEnded,
+        Ok(()) => WatchStreamSendOutcome::Continue,
+        Err(_) => WatchStreamSendOutcome::ClientDisconnected,
     }
 }
 
 async fn send_service_watch_response(
     sender: &mpsc::Sender<Result<internal_proto::WatchServiceResponse, Status>>,
     response: Result<internal_proto::WatchServiceResponse, Status>,
-) -> bool {
-    let should_close_stream = response.is_err();
-    sender.send(response).await.is_err() || should_close_stream
+) -> WatchStreamSendOutcome {
+    send_watch_item(sender, response).await
 }
 
 async fn service_watch_response<S>(
@@ -1679,7 +1931,7 @@ where
 {
     Ok(internal_proto::WatchServiceResponse {
         event_type: codec::watch_event_type(&event),
-        instance: service_watch_instance(runtime, caller, &event).await?,
+        instance: service_watch_instance(runtime, caller, &event, request_id, trace_id).await?,
         metadata: Some(codec::response_metadata(
             event.revision,
             request_id.to_string(),
@@ -1692,6 +1944,8 @@ async fn service_watch_instance<S>(
     runtime: &DiscoveryRpcRuntime<S>,
     caller: &CallerContext,
     event: &DiscoveryEvent,
+    request_id: &str,
+    trace_id: &str,
 ) -> Result<Option<common_proto::ServiceInstance>, Status>
 where
     S: Send + Sync + 'static,
@@ -1701,8 +1955,10 @@ where
     }
 
     let Some(service_name) = event.service_name.clone() else {
-        return Err(Status::failed_precondition(
-            "registry watch event is missing service_name",
+        return Err(attach_rpc_correlation_metadata(
+            Status::failed_precondition("registry watch event is missing service_name"),
+            request_id,
+            trace_id,
         ));
     };
     let result = runtime
@@ -1717,7 +1973,7 @@ where
             codec::now_millis(),
         )
         .await
-        .map_err(map_discovery_error_to_status)?;
+        .map_err(|error| map_discovery_error_to_rpc_status(error, request_id, trace_id))?;
 
     Ok(result
         .map(codec::service_instance_to_proto)

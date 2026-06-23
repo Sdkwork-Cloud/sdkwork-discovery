@@ -42,6 +42,8 @@ async fn memory_registry_store_contract_is_async() {
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_000,
         )
@@ -52,6 +54,8 @@ async fn memory_registry_store_contract_is_async() {
             ListServicesQuery {
                 namespace: "sdkwork".to_string(),
                 environment: "development".to_string(),
+                page_size: 0,
+                page_token: None,
             },
             2_000,
         )

@@ -345,6 +345,54 @@ max_connections = 16"#,
     assert!(bootstrap.config().storage.apply_initial_schema);
 }
 
+#[test]
+fn etcd_storage_initialization_fails_fast_until_adapter_is_implemented() {
+    let input = include_str!("../../../etc/discovery.example.toml").replace(
+        r#"[storage]
+provider = "memory""#,
+        r#"[storage]
+provider = "etcd"
+
+[storage.etcd]
+host = "127.0.0.1"
+port = 2379
+tls_enabled = false
+connect_timeout_ms = 3000
+max_connections = 16"#,
+    );
+    match DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()) {
+        Ok(_) => panic!("etcd storage provider must fail fast before bootstrap"),
+        Err(error) => {
+            assert!(error.to_string().contains("not implemented"));
+            assert!(error.to_string().contains("etcd"));
+        }
+    }
+}
+
+#[test]
+fn consul_storage_initialization_fails_fast_until_adapter_is_implemented() {
+    let input = include_str!("../../../etc/discovery.example.toml").replace(
+        r#"[storage]
+provider = "memory""#,
+        r#"[storage]
+provider = "consul"
+
+[storage.consul]
+host = "127.0.0.1"
+port = 8500
+tls_enabled = false
+connect_timeout_ms = 3000
+max_connections = 16"#,
+    );
+    match DiscoveryServiceHostBootstrap::from_toml_str_with_env(&input, &BTreeMap::new()) {
+        Ok(_) => panic!("consul storage provider must fail fast before bootstrap"),
+        Err(error) => {
+            assert!(error.to_string().contains("not implemented"));
+            assert!(error.to_string().contains("consul"));
+        }
+    }
+}
+
 #[tokio::test]
 async fn memory_storage_initialization_is_noop() {
     let bootstrap = DiscoveryServiceHostBootstrap::from_toml_str_with_env(

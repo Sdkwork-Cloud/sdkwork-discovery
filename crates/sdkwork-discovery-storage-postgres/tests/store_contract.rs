@@ -55,6 +55,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -73,6 +75,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -91,6 +95,8 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -220,6 +226,8 @@ async fn postgres_discover_instances_rejects_blank_optional_protocol_filter_befo
                     protocol: Some(" ".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )

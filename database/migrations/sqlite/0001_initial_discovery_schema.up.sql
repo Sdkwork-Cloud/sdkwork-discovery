@@ -31,8 +31,6 @@ CREATE TABLE IF NOT EXISTS discovery_service_instance (
     lease_id TEXT NOT NULL,
     expires_at_ms INTEGER NOT NULL,
     revision INTEGER NOT NULL,
-    health_check_json TEXT,
-    health_check_state_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     version INTEGER NOT NULL DEFAULT 0,

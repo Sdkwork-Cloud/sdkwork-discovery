@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
 use sdkwork_discovery_contract::{
-    DiscoveryError, DiscoveryResult, RuntimeDeploymentMode, RuntimeEnvironment, RuntimeTarget,
+    DiscoveryError, DiscoveryResult, RuntimeDeploymentMode, RuntimeDeploymentProfile,
+    RuntimeEnvironment, RuntimeTarget,
 };
 use serde::Deserialize;
 
@@ -55,6 +56,8 @@ struct RawDiscoveryRuntimeConfig {
 struct RawRuntimeConfig {
     environment: Option<String>,
     config_profile: Option<String>,
+    #[serde(default)]
+    deployment_profile: Option<String>,
     deployment_mode: String,
     runtime_target: String,
 }
@@ -160,10 +163,18 @@ impl RawDiscoveryRuntimeConfig {
                 ))
             })?;
 
+        let deployment_profile = match self.runtime.deployment_profile.as_deref() {
+            Some(value) => RuntimeDeploymentProfile::parse(value).ok_or_else(|| {
+                DiscoveryError::InvalidConfig(format!("unknown deployment profile: {value}"))
+            })?,
+            None => RuntimeDeploymentProfile::Standalone,
+        };
+
         Ok(DiscoveryRuntimeConfig {
             runtime: RuntimeConfig {
                 environment,
                 config_profile: self.runtime.config_profile,
+                deployment_profile,
                 deployment_mode,
                 runtime_target,
             },

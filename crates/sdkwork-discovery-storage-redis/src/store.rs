@@ -15,7 +15,7 @@ pub fn map_redis_error(error: redis::RedisError) -> sdkwork_discovery_contract::
 
 #[derive(Debug)]
 pub struct RedisDiscoveryStore {
-    client: redis::Client,
+    client: Option<redis::Client>,
     state_key: String,
     safe_summary: String,
     pub(crate) memory: Mutex<MemoryDiscoveryStore>,
@@ -31,7 +31,7 @@ impl RedisDiscoveryStore {
         let options = RedisConnectionOptions::from_transport(transport, password)?;
         let client = redis::Client::open(options.redis_url()).map_err(map_redis_error)?;
         Ok(Self {
-            client,
+            client: Some(client),
             state_key: options.state_key(),
             safe_summary: options.safe_summary(),
             memory: Mutex::new(MemoryDiscoveryStore::new()),
@@ -42,7 +42,7 @@ impl RedisDiscoveryStore {
 
     pub fn new_in_memory_delegate() -> Self {
         Self {
-            client: redis::Client::open("redis://127.0.0.1/").expect("placeholder redis client"),
+            client: None,
             state_key: format!("{DISCOVERY_REDIS_KEY_PREFIX}:test-delegate"),
             safe_summary: "redis delegate=memory (no persistence)".to_string(),
             memory: Mutex::new(MemoryDiscoveryStore::new()),
@@ -90,7 +90,12 @@ impl RedisDiscoveryStore {
     }
 
     async fn connection(&self) -> DiscoveryResult<MultiplexedConnection> {
-        self.client
+        let client = self.client.as_ref().ok_or_else(|| {
+            sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
+                "redis connection is disabled for in-memory delegate".to_string(),
+            )
+        })?;
+        client
             .get_multiplexed_async_connection()
             .await
             .map_err(map_redis_error)

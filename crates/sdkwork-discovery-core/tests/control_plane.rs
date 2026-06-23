@@ -457,6 +457,8 @@ async fn registry_reader_can_discover_instances_but_not_write() {
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_000,
         )
@@ -781,6 +783,8 @@ async fn registry_reader_can_list_services() {
             ListServicesQuery {
                 namespace: "sdkwork".to_string(),
                 environment: "development".to_string(),
+                page_size: 0,
+                page_token: None,
             },
             2_000,
         )
@@ -1003,6 +1007,8 @@ async fn registry_expire_instances_is_internal_maintenance_and_emits_watch_event
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_001,
         )

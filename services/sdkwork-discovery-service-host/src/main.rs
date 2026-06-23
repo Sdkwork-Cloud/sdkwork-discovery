@@ -1,4 +1,8 @@
-use sdkwork_discovery_rpc::describe_metrics;
+mod shutdown;
+
+use sdkwork_discovery_rpc::{
+    describe_metrics, init_telemetry_context, set_health_status, RpcTelemetryContext,
+};
 use sdkwork_discovery_service_host::DiscoveryServiceHostRuntime;
 use tracing_subscriber::EnvFilter;
 
@@ -31,19 +35,38 @@ async fn main() {
     #[cfg(feature = "prometheus")]
     {
         use metrics_exporter_prometheus::PrometheusBuilder;
+        use std::net::SocketAddr;
+
+        let metrics_bind = std::env::var("SDKWORK_DISCOVERY_METRICS_BIND")
+            .ok()
+            .and_then(|value| value.parse::<SocketAddr>().ok())
+            .unwrap_or_else(|| SocketAddr::from(([127, 0, 0, 1], 9090)));
+
         PrometheusBuilder::new()
-            .with_http_listener(([127, 0, 0, 1], 9090))
+            .with_http_listener(metrics_bind)
             .install()
             .expect("failed to install Prometheus exporter");
         tracing::info!(
             service = service_name,
             environment = %environment,
-            "Prometheus metrics exporter listening on :9090"
+            metrics_bind = %metrics_bind,
+            "Prometheus metrics exporter listening"
         );
     }
 
     match DiscoveryServiceHostRuntime::from_process_env() {
         Ok(runtime) => {
+            let config = runtime.bootstrap().config();
+            let deployment_profile = config.runtime.deployment_profile.as_str().to_string();
+            let runtime_target = config.runtime.runtime_target.as_str().to_string();
+            init_telemetry_context(RpcTelemetryContext {
+                process_service: service_name.to_string(),
+                environment: config.runtime.environment.as_str().to_string(),
+                deployment_profile: deployment_profile.clone(),
+                runtime_target: runtime_target.clone(),
+            });
+            set_health_status(true);
+
             if let Err(error) = runtime.bootstrap().initialize_storage().await {
                 tracing::error!(
                     service = service_name,
@@ -76,19 +99,15 @@ async fn main() {
                 environment = %environment,
                 "gRPC transport started"
             );
-            if let Err(error) = tokio::signal::ctrl_c().await {
-                tracing::error!(
-                    service = service_name,
-                    environment = %environment,
-                    error = %error,
-                    "failed to wait for shutdown signal"
-                );
-            }
+            shutdown::wait_for_shutdown_signal().await;
             tracing::info!(
                 service = service_name,
                 environment = %environment,
+                deployment_profile = %deployment_profile,
+                runtime_target = %runtime_target,
                 "shutting down"
             );
+            set_health_status(false);
             server.shutdown().await;
         }
         Err(error) => {

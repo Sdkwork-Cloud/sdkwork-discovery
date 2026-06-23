@@ -1265,6 +1265,7 @@ async fn internal_server_does_not_expose_backend_admin_service() {
     let mut request = Request::new(ListServicesRequest {
         namespace: "sdkwork".to_string(),
         environment: "development".to_string(),
+        page: None,
     });
     request
         .metadata_mut()

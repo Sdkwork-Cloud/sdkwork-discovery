@@ -559,7 +559,9 @@ impl RegistryStore for PostgresDiscoveryStore {
             });
         }
 
-        Ok(ListServicesResult { revision, services })
+        Ok(sdkwork_discovery_contract::finalize_list_services(
+            services, revision, &query,
+        ))
     }
 
     async fn list_active_instances_with_health_check(

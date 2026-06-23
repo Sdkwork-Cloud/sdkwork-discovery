@@ -821,6 +821,10 @@ fn discover_cache_key(query: &DiscoverInstancesQuery) -> String {
     if let Some(sort_by) = query.sort_by {
         key.push_str(&format!(":sort:{sort_by:?}"));
     }
+    key.push_str(&format!(":page_size={}", query.page_size));
+    if let Some(page_token) = &query.page_token {
+        key.push_str(&format!(":page_token={page_token}"));
+    }
     key
 }
 
@@ -832,7 +836,10 @@ fn retrieve_instance_cache_key(query: &RetrieveInstanceQuery) -> String {
 }
 
 fn list_services_cache_key(query: &ListServicesQuery) -> String {
-    format!("list:{}:{}", query.namespace, query.environment)
+    format!(
+        "list:{}:{}:page_size={}:page_token={:?}",
+        query.namespace, query.environment, query.page_size, query.page_token
+    )
 }
 
 fn effective_config_cache_key(query: &RetrieveEffectiveConfigQuery) -> String {

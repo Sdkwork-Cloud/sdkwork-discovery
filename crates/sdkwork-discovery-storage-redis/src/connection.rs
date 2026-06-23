@@ -74,12 +74,13 @@ impl RedisConnectionOptions {
 
     pub fn safe_summary(&self) -> String {
         format!(
-            "redis host={} port={} database={} username={} tls={} max_connections={}",
+            "redis host={} port={} database={} username={} tls={} connect_timeout_ms={} max_connections={}",
             self.host,
             self.port,
             self.database,
             self.username.as_deref().unwrap_or("<none>"),
             self.tls_enabled,
+            self.connect_timeout_ms,
             self.max_connections
         )
     }

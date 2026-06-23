@@ -42,17 +42,26 @@ Set a deadline for each RPC call through the generated deadline helpers or the l
 
 ## Unary call example
 
-```ts
-import { createRpcIdempotencyMetadata, createStaticMetadataProvider, resolveRpcDeadlineMs } from './src/index.js';
+```rust
+use sdkwork_discovery_rpc_sdk_rust::{
+    create_rpc_idempotency_metadata, create_traceparent_metadata, resolve_rpc_deadline_ms,
+    RpcDeadlineOptions, RpcIdempotencyOptions,
+};
+use std::collections::HashMap;
 
-const metadataProvider = createStaticMetadataProvider({
-  authorization: 'Bearer <auth-token>',
-  'access-token': '<access-token>',
-  'idempotency-key': 'create-message-001',
+let mut metadata = create_traceparent_metadata(
+    "0af7651916cd43dd8448eb211c80319c",
+    Some("b7ad6b7169203331"),
+)?;
+metadata.extend(create_rpc_idempotency_metadata(RpcIdempotencyOptions {
+    idempotency_key: Some("create-config-draft-001".to_string()),
+    request_hash: Some("sha256:canonical-body".to_string()),
+}));
+let deadline_ms = resolve_rpc_deadline_ms(RpcDeadlineOptions {
+    timeout_ms: Some(5_000),
+    ..RpcDeadlineOptions::default()
 });
-const deadlineMs = resolveRpcDeadlineMs({ timeoutMs: 5000 });
-const idempotencyMetadata = createRpcIdempotencyMetadata({ idempotencyKey: 'create-message-001' });
-// Call RegistryService.RegisterInstance with metadataProvider, idempotencyMetadata, and deadlineMs using the generated protobuf client.
+// Call RegistryService.RegisterInstance with metadata and deadline_ms using the generated tonic client.
 ```
 
 ## Regeneration evidence

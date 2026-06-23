@@ -220,6 +220,21 @@ pub fn discover_instances_query(
         _ => None,
     };
 
+    if let Some(page) = request.page.as_ref() {
+        if !page.page_token.is_empty()
+            && matches!(
+                sort_by,
+                Some(sdkwork_discovery_contract::DiscoverSortBy::WeightedRandom)
+            )
+        {
+            return Err(DiscoveryError::InvalidArgument(
+                "page_token is not supported with weighted-random discovery sorting".to_string(),
+            ));
+        }
+    }
+
+    let page = request.page.unwrap_or_default();
+
     Ok(DiscoverInstancesQuery {
         namespace: request.namespace,
         environment: request.environment,
@@ -228,6 +243,14 @@ pub fn discover_instances_query(
         protocol: empty_string_as_none(request.protocol),
         label_filters,
         sort_by,
+        page_size: page.page_size,
+        page_token: sdkwork_discovery_contract::normalize_page_token(
+            if page.page_token.is_empty() {
+                None
+            } else {
+                Some(page.page_token)
+            },
+        ),
     })
 }
 
@@ -259,6 +282,9 @@ pub fn discover_instances_response(
             .map(service_instance_to_proto)
             .collect(),
         metadata: Some(response_metadata(result.revision, request_id, trace_id)),
+        page: Some(common_proto::PageResponse {
+            next_page_token: result.next_page_token.unwrap_or_default(),
+        }),
     }
 }
 
@@ -407,6 +433,20 @@ pub fn list_services_query(
     Ok(ListServicesQuery {
         namespace: request.namespace,
         environment: request.environment,
+        page_size: request
+            .page
+            .as_ref()
+            .map(|page| page.page_size)
+            .unwrap_or(0),
+        page_token: sdkwork_discovery_contract::normalize_page_token(request.page.and_then(
+            |page| {
+                if page.page_token.is_empty() {
+                    None
+                } else {
+                    Some(page.page_token)
+                }
+            },
+        )),
     })
 }
 
@@ -422,6 +462,9 @@ pub fn list_services_response(
             .map(service_summary_to_proto)
             .collect(),
         metadata: Some(response_metadata(result.revision, request_id, trace_id)),
+        page: Some(common_proto::PageResponse {
+            next_page_token: result.next_page_token.unwrap_or_default(),
+        }),
     }
 }
 

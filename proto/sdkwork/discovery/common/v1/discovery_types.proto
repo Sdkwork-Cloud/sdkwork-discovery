@@ -148,3 +148,12 @@ enum WatchEventType {
   WATCH_EVENT_TYPE_CONFIG_ROLLED_BACK = 7;
   WATCH_EVENT_TYPE_HEARTBEAT = 8;
 }
+
+message PageRequest {
+  uint32 page_size = 1;
+  string page_token = 2;
+}
+
+message PageResponse {
+  string next_page_token = 1;
+}

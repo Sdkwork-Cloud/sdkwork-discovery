@@ -35,7 +35,7 @@ impl WatchEventSubscriber {
         match self.receiver.recv().await {
             Ok(event) => Some(Ok(event)),
             Err(broadcast::error::RecvError::Lagged(skipped)) => Some(Err(
-                sdkwork_discovery_contract::DiscoveryError::InvalidConfig(format!(
+                sdkwork_discovery_contract::DiscoveryError::ResourceExhausted(format!(
                     "discovery watch stream lagged behind by {skipped} events"
                 )),
             )),

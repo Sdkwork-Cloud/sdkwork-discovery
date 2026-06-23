@@ -79,6 +79,9 @@ impl RuntimeResilience {
         match result {
             Ok(_) => {
                 self.circuit_breaker.record_success();
+                if self.degradation == DegradationState::ReadOnly {
+                    self.degradation = DegradationState::Normal;
+                }
             }
             Err(error) if is_storage_failure(error) => {
                 self.circuit_breaker.record_failure();
@@ -237,6 +240,31 @@ mod tests {
     }
 
     #[test]
+    fn storage_recovery_clears_read_only_degradation() {
+        let mut resilience = RuntimeResilience::new(RuntimeResilienceConfig {
+            circuit_breaker: CircuitBreakerConfig {
+                enabled: true,
+                failure_threshold: 1,
+                recovery_timeout_ms: 30_000,
+                half_open_max_requests: 1,
+            },
+            degradation: DegradationConfig {
+                read_only_on_storage_failure: true,
+                stale_read_max_age_ms: 60_000,
+            },
+            ..RuntimeResilienceConfig::default()
+        });
+
+        resilience.record_result::<()>(&Err(DiscoveryError::Unavailable(
+            "postgres unavailable".to_string(),
+        )));
+        assert_eq!(resilience.degradation_state(), DegradationState::ReadOnly);
+
+        resilience.record_result::<()>(&Ok(()));
+        assert_eq!(resilience.degradation_state(), DegradationState::Normal);
+    }
+
+    #[test]
     fn read_only_mode_serves_stale_discover_results_after_storage_failure() {
         let mut resilience = RuntimeResilience::new(RuntimeResilienceConfig {
             circuit_breaker: CircuitBreakerConfig {
@@ -256,6 +284,7 @@ mod tests {
         let fresh = DiscoverInstancesResult {
             revision: 1,
             instances: vec![],
+            next_page_token: None,
         };
         let cached = resilience
             .resolve_discover_instances(key.clone(), Ok(fresh.clone()))

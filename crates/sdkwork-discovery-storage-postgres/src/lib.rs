@@ -13,10 +13,7 @@ pub mod store;
 mod validation;
 mod watch;
 
-pub use bootstrap::{
-    bootstrap_discovery_database, bootstrap_discovery_database_from_env,
-    connect_and_bootstrap_discovery_database_from_env, connect_discovery_database_pool_from_env,
-    DiscoveryDatabaseHost, DiscoveryDatabasePool,
-};
+#[rustfmt::skip]
+pub use bootstrap::{bootstrap_discovery_database, bootstrap_discovery_database_from_env, connect_and_bootstrap_discovery_database_from_env, connect_discovery_database_pool_from_env, DiscoveryDatabaseHost, DiscoveryDatabasePool};
 pub use options::PostgresConnectionOptions;
 pub use store::PostgresDiscoveryStore;

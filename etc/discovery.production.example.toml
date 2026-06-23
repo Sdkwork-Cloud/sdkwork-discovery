@@ -1,0 +1,77 @@
+# Production-oriented Discovery runtime config template.
+# Copy to a host-local path and point SDKWORK_DISCOVERY_CONFIG_FILE at it.
+# Secret files must exist on the host before startup; inline PEM/password values are rejected.
+# Apply database migrations through sdkwork-database (pnpm db:migrate) or your deployment pipeline
+# before serving traffic. Production config rejects apply_initial_schema = true.
+
+[runtime]
+environment = "production"
+config_profile = "prod"
+deployment_profile = "cloud"
+deployment_mode = "server"
+runtime_target = "server"
+
+[server]
+grpc_bind_host = "0.0.0.0"
+grpc_port = 19090
+admin_grpc_port = 19091
+enable_health = true
+enable_reflection = false
+default_deadline_ms = 30000
+
+[security]
+auth_mode = "service-token"
+tls_enabled = true
+mtls_enabled = false
+allow_unsigned_local_context = false
+server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
+server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key"
+
+[security.service_token]
+hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
+issuer = "sdkwork-discovery"
+audience = "sdkwork-discovery-rpc"
+max_token_ttl_seconds = 3600
+
+[storage]
+provider = "postgres"
+registry_role = "primary"
+config_role = "primary"
+watch_role = "primary"
+apply_initial_schema = false
+
+[storage.postgres]
+host = "postgres.internal"
+port = 5432
+database = "sdkwork_discovery"
+schema = "public"
+username = "sdkwork_discovery"
+password_file = "/run/secrets/sdkwork/discovery/postgres-password"
+tls_enabled = true
+connect_timeout_ms = 3000
+max_connections = 32
+
+[registry]
+default_lease_ttl_seconds = 30
+min_lease_ttl_seconds = 5
+max_lease_ttl_seconds = 300
+expiry_scan_interval_ms = 1000
+expiry_scan_batch_size = 1000
+
+[config_registry]
+enabled = true
+max_config_body_bytes = 262144
+require_publish_for_reads = true
+allow_secret_values = false
+allow_secret_refs = true
+
+[watch]
+enabled = true
+max_streams = 10000
+event_buffer_size = 1024
+heartbeat_interval_ms = 15000
+durable_poll_interval_ms = 1000
+durable_replay_batch_size = 1000
+
+[resilience]
+# Enable only when the deployment needs throttling, circuit breaking, or read-only degradation.

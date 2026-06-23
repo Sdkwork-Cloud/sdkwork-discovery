@@ -119,6 +119,26 @@ fn durable_storage_crates_integrate_sdkwork_database() {
         .join(".github/workflows/package.yml")
         .exists());
     assert!(workspace_root.join("scripts/package-server.mjs").exists());
+    assert!(workspace_root.join(".github/workflows/verify.yml").exists());
+}
+
+#[test]
+fn production_ops_artifacts_are_present() {
+    let workspace_root = workspace_root();
+    let database_readme = fs::read_to_string(workspace_root.join("database/README.md")).unwrap();
+    let package_script =
+        fs::read_to_string(workspace_root.join("scripts/package-server.mjs")).unwrap();
+
+    assert!(workspace_root
+        .join("etc/discovery.production.example.toml")
+        .exists());
+    assert!(database_readme.contains("database/migrations/postgres/"));
+    assert!(!database_readme.contains("crates/sdkwork-discovery-storage-postgres/migrations"));
+    assert!(package_script.contains("discovery.production.example.toml"));
+    assert!(package_script.contains("INSTALL.md"));
+    assert!(package_script.contains("prometheusFeature"));
+    assert!(package_script.contains("--features"));
+    assert!(package_script.contains("prometheus"));
 }
 
 #[test]

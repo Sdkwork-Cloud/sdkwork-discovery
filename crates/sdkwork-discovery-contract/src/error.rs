@@ -13,6 +13,7 @@ pub enum DiscoveryError {
     PolicyViolation(String),
     Conflict(String),
     Unavailable(String),
+    ResourceExhausted(String),
 }
 
 impl DiscoveryError {
@@ -27,6 +28,7 @@ impl DiscoveryError {
             Self::PolicyViolation(_) => "policy_violation",
             Self::Conflict(_) => "conflict",
             Self::Unavailable(_) => "unavailable",
+            Self::ResourceExhausted(_) => "resource_exhausted",
         }
     }
 }
@@ -43,6 +45,9 @@ impl Display for DiscoveryError {
             Self::PolicyViolation(message) => write!(formatter, "policy violation: {message}"),
             Self::Conflict(message) => write!(formatter, "conflict: {message}"),
             Self::Unavailable(message) => write!(formatter, "unavailable: {message}"),
+            Self::ResourceExhausted(message) => {
+                write!(formatter, "resource exhausted: {message}")
+            }
         }
     }
 }

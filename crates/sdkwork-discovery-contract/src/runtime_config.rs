@@ -38,6 +38,29 @@ impl RuntimeEnvironment {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RuntimeDeploymentProfile {
+    Standalone,
+    Cloud,
+}
+
+impl RuntimeDeploymentProfile {
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "standalone" | "self-hosted" => Some(Self::Standalone),
+            "cloud" | "cloud-hosted" => Some(Self::Cloud),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Standalone => "standalone",
+            Self::Cloud => "cloud",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeDeploymentMode {
     Server,
     Container,
@@ -71,6 +94,14 @@ impl RuntimeTarget {
             "container" => Some(Self::Container),
             "test-runner" => Some(Self::TestRunner),
             _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Server => "server",
+            Self::Container => "container",
+            Self::TestRunner => "test-runner",
         }
     }
 }

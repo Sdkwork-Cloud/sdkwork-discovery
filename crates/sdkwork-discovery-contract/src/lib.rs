@@ -5,6 +5,7 @@ pub mod encryption;
 mod error;
 pub mod health_check;
 pub mod namespace;
+mod pagination;
 mod registry;
 mod rpc_contract;
 mod runtime_config;
@@ -15,7 +16,9 @@ pub use encryption::{ConfigEncryptor, EncryptedValue, EncryptionAlgorithm, Encry
 pub use error::{DiscoveryError, DiscoveryResult};
 pub use health_check::{HealthCheckConfig, HealthCheckProbe, HealthCheckRuntimeState};
 pub use namespace::{MemoryNamespaceStore, NamespaceConfig, NamespaceQuotaStatus, NamespaceStore};
+pub use pagination::{normalize_page_size, normalize_page_token, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE};
 pub use registry::finalize_discover_instances;
+pub use registry::finalize_list_services;
 pub use registry::BatchOperationError;
 pub use registry::BatchRegisterResult;
 pub use registry::ConfigDraft;
@@ -51,4 +54,5 @@ pub use registry::ServiceInstance;
 pub use registry::ServiceSummary;
 pub use registry::WatchEventsQuery;
 pub use rpc_contract::RpcContractInventory;
-pub use runtime_config::{RuntimeDeploymentMode, RuntimeEnvironment, RuntimeTarget};
+#[rustfmt::skip]
+pub use runtime_config::{RuntimeDeploymentMode, RuntimeDeploymentProfile, RuntimeEnvironment, RuntimeTarget};

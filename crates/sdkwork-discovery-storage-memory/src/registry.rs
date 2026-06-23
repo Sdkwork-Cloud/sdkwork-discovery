@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use sdkwork_discovery_contract::{
-    finalize_discover_instances, BatchOperationError, BatchRegisterResult,
+    finalize_discover_instances, finalize_list_services, BatchOperationError, BatchRegisterResult,
     DeregisterInstanceResult, DiscoverInstancesQuery, DiscoverInstancesResult, DiscoveryError,
     DiscoveryEvent, DiscoveryEventKind, DiscoveryResult, ListServicesQuery, ListServicesResult,
     RegisterInstanceCommand, RegisterInstanceResult, RenewLeaseCommand, RenewLeaseResult,
@@ -504,10 +504,11 @@ impl RegistryStore for MemoryDiscoveryStore {
             summary.latest_revision = summary.latest_revision.max(instance.revision);
         }
 
-        Ok(ListServicesResult {
-            revision: self.revision,
-            services: services.into_values().collect(),
-        })
+        Ok(finalize_list_services(
+            services.into_values().collect(),
+            self.revision,
+            &query,
+        ))
     }
 
     async fn list_active_instances_with_health_check(

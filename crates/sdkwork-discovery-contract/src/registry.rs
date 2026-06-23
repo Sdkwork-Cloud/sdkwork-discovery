@@ -105,7 +105,7 @@ pub struct DeregisterInstanceResult {
     pub deregistered: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct DiscoverInstancesQuery {
     pub namespace: String,
     pub environment: String,
@@ -114,6 +114,8 @@ pub struct DiscoverInstancesQuery {
     pub protocol: Option<String>,
     pub label_filters: Vec<LabelFilter>,
     pub sort_by: Option<DiscoverSortBy>,
+    pub page_size: u32,
+    pub page_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -167,6 +169,7 @@ pub struct RetrieveInstanceQuery {
 pub struct DiscoverInstancesResult {
     pub revision: u64,
     pub instances: Vec<ServiceInstance>,
+    pub next_page_token: Option<String>,
 }
 
 /// Applies label filters and sort order after storage retrieval so all backends behave consistently.
@@ -209,12 +212,29 @@ pub fn finalize_discover_instances(
         DiscoverSortBy::WeightedRandom => {
             instances.sort_by(|a, b| a.priority.cmp(&b.priority));
             weighted_shuffle_discover_instances(&mut instances);
+            let page_size = crate::pagination::normalize_page_size(query.page_size);
+            if instances.len() > page_size as usize {
+                instances.truncate(page_size as usize);
+            }
+            return DiscoverInstancesResult {
+                revision,
+                instances,
+                next_page_token: None,
+            };
         }
     }
+
+    let (instances, next_page_token) = crate::pagination::paginate_sorted_keys(
+        instances,
+        query.page_size,
+        query.page_token.as_deref(),
+        |instance| instance.instance_id.clone(),
+    );
 
     DiscoverInstancesResult {
         revision,
         instances,
+        next_page_token,
     }
 }
 
@@ -258,16 +278,39 @@ fn weighted_shuffle_discover_instances(instances: &mut Vec<ServiceInstance>) {
     *instances = result;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+pub fn finalize_list_services(
+    mut services: Vec<ServiceSummary>,
+    revision: u64,
+    query: &ListServicesQuery,
+) -> ListServicesResult {
+    services.sort_by(|left, right| left.service_name.cmp(&right.service_name));
+    let (services, next_page_token) = crate::pagination::paginate_sorted_keys(
+        services,
+        query.page_size,
+        query.page_token.as_deref(),
+        |summary| summary.service_name.clone(),
+    );
+
+    ListServicesResult {
+        revision,
+        services,
+        next_page_token,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ListServicesQuery {
     pub namespace: String,
     pub environment: String,
+    pub page_size: u32,
+    pub page_token: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ListServicesResult {
     pub revision: u64,
     pub services: Vec<ServiceSummary>,
+    pub next_page_token: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -502,10 +545,64 @@ impl WatchEventsQuery {
                 event.config_group.as_deref() == Some(config_group.as_str())
             })
             && self.config_application.as_ref().is_none_or(|application| {
-                event
-                    .config_application
-                    .as_deref()
-                    .is_none_or(|event_application| event_application == application)
+                event.config_application.as_deref() == Some(application.as_str())
             })
+    }
+}
+
+#[cfg(test)]
+mod watch_query_tests {
+    use super::{DiscoveryEvent, DiscoveryEventKind, WatchEventsQuery};
+
+    #[test]
+    fn application_scoped_watch_rejects_cross_application_events() {
+        let event = DiscoveryEvent {
+            revision: 1,
+            namespace: "sdkwork".to_string(),
+            environment: "development".to_string(),
+            kind: DiscoveryEventKind::ConfigPublished,
+            resource_id: "release-1".to_string(),
+            service_name: None,
+            config_group: Some("runtime".to_string()),
+            config_key: Some("log.level".to_string()),
+            config_application: Some("sdkwork-drive".to_string()),
+        };
+        let query = WatchEventsQuery {
+            namespace: "sdkwork".to_string(),
+            environment: "development".to_string(),
+            from_revision: 0,
+            service_name: None,
+            config_group: Some("runtime".to_string()),
+            config_application: Some("sdkwork-chat".to_string()),
+            max_events: 1_024,
+        };
+
+        assert!(!query.matches_event(&event));
+    }
+
+    #[test]
+    fn application_scoped_watch_rejects_events_without_application() {
+        let event = DiscoveryEvent {
+            revision: 1,
+            namespace: "sdkwork".to_string(),
+            environment: "development".to_string(),
+            kind: DiscoveryEventKind::ConfigPublished,
+            resource_id: "release-1".to_string(),
+            service_name: None,
+            config_group: Some("runtime".to_string()),
+            config_key: Some("log.level".to_string()),
+            config_application: None,
+        };
+        let query = WatchEventsQuery {
+            namespace: "sdkwork".to_string(),
+            environment: "development".to_string(),
+            from_revision: 0,
+            service_name: None,
+            config_group: Some("runtime".to_string()),
+            config_application: Some("sdkwork-chat".to_string()),
+            max_events: 1_024,
+        };
+
+        assert!(!query.matches_event(&event));
     }
 }

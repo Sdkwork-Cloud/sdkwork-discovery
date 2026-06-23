@@ -63,6 +63,21 @@
       "purpose": "RPC SDK generation workspace and manifest rules."
     },
     {
+      "file": "DISCOVERY_SPEC.md",
+      "path": "../sdkwork-specs/DISCOVERY_SPEC.md",
+      "purpose": "Service registry and versioned runtime configuration control plane."
+    },
+    {
+      "file": "RPC_FRAMEWORK_SPEC.md",
+      "path": "../sdkwork-specs/RPC_FRAMEWORK_SPEC.md",
+      "purpose": "Mandatory RPC framework integration and invocation runtime."
+    },
+    {
+      "file": "RPC_RESILIENCE_SPEC.md",
+      "path": "../sdkwork-specs/RPC_RESILIENCE_SPEC.md",
+      "purpose": "RPC deadlines, retries, budgets, and graceful shutdown."
+    },
+    {
       "file": "CONFIG_SPEC.md",
       "path": "../sdkwork-specs/CONFIG_SPEC.md",
       "purpose": "Typed runtime configuration and feature flag rules."
@@ -149,6 +164,7 @@
       "SDKWORK_DISCOVERY_ENVIRONMENT",
       "SDKWORK_DISCOVERY_CONFIG_PROFILE",
       "SDKWORK_DISCOVERY_DEPLOYMENT_MODE",
+      "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE",
       "SDKWORK_DISCOVERY_RUNTIME_TARGET",
       "SDKWORK_DISCOVERY_STORAGE_PROVIDER",
       "SDKWORK_DISCOVERY_DATABASE_ENGINE",
@@ -239,7 +255,8 @@
       "SDKWORK_DISCOVERY_RPC_CLIENT_CA_CERT_FILE",
       "SDKWORK_DISCOVERY_RPC_REFLECTION_ENABLED",
       "SDKWORK_DISCOVERY_RPC_HEALTH_ENABLED",
-      "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS"
+      "SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS",
+      "SDKWORK_DISCOVERY_METRICS_BIND"
     ]
   },
   "verification": {
@@ -247,9 +264,12 @@
       "cargo fmt --all -- --check",
       "cargo test --workspace",
       "pnpm.cmd test:topology-validate",
+      "pnpm.cmd run test:contract:database",
+      "pnpm.cmd run verify:rpc-proto",
       "pnpm.cmd topology:validate",
       "pnpm.cmd topology:matrix",
       "pnpm.cmd test:topology-baggage",
+      "pnpm.cmd run test:package-contract",
       "pnpm.cmd verify",
       "pnpm.cmd run verify:sdk-rust",
       "pnpm.cmd run verify:sdk-typescript",

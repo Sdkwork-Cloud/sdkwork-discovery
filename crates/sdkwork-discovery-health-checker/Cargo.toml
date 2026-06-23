@@ -7,4 +7,6 @@ version.workspace = true
 sdkwork-discovery-contract.workspace = true
 reqwest.workspace = true
 tokio = { workspace = true, features = ["net", "time"] }
+tonic = { workspace = true }
+tonic-health = { workspace = true }
 tracing.workspace = true

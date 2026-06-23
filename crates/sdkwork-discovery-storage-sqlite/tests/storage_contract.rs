@@ -65,6 +65,8 @@ async fn sqlite_registry_persists_instances_and_filters_expired_rows() {
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_500,
         )
@@ -85,6 +87,8 @@ async fn sqlite_registry_persists_instances_and_filters_expired_rows() {
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             33_000,
         )
@@ -342,6 +346,8 @@ async fn sqlite_expire_instances_soft_deletes_expired_instances_and_emits_watch_
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_001,
         )
@@ -407,6 +413,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -425,6 +433,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -443,6 +453,8 @@ async fn sqlite_discover_instances_rejects_blank_required_filters() {
                     protocol: Some("grpc".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -523,6 +535,8 @@ async fn sqlite_discover_instances_rejects_blank_optional_protocol_filter() {
                     protocol: Some(" ".to_string()),
                     label_filters: vec![],
                     sort_by: None,
+                    page_size: 0,
+                    page_token: None,
                 },
                 1_000,
             )
@@ -1213,6 +1227,8 @@ async fn sqlite_lists_non_expired_services() {
             ListServicesQuery {
                 namespace: "sdkwork".to_string(),
                 environment: "development".to_string(),
+                page_size: 0,
+                page_token: None,
             },
             2_000,
         )
@@ -1242,6 +1258,8 @@ async fn sqlite_persistent_instances_survive_past_lease_ttl() {
                 protocol: Some("grpc".to_string()),
                 label_filters: vec![],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             10_000_000,
         )
@@ -1300,6 +1318,8 @@ async fn sqlite_discover_instances_applies_label_filters() {
                     value: "primary".to_string(),
                 }],
                 sort_by: None,
+                page_size: 0,
+                page_token: None,
             },
             2_500,
         )

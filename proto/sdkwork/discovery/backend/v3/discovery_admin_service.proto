@@ -53,9 +53,11 @@ message RollbackConfigResponse {
 message ListServicesRequest {
   string namespace = 1;
   string environment = 2;
+  sdkwork.discovery.common.v1.PageRequest page = 30;
 }
 
 message ListServicesResponse {
   repeated sdkwork.discovery.common.v1.ServiceSummary services = 1;
   sdkwork.discovery.common.v1.ResponseMetadata metadata = 2;
+  sdkwork.discovery.common.v1.PageResponse page = 3;
 }

@@ -16,6 +16,16 @@ pub fn caller_from_metadata(
     metadata: &MetadataMap,
     policy: RpcContextPolicy,
 ) -> DiscoveryResult<CallerContext> {
+    if policy.allow_unsigned_local_context && has_unsigned_context_metadata(metadata) {
+        if policy.service_token_verifier.is_some() {
+            return Err(DiscoveryError::Unauthenticated(
+                "unsigned context metadata is not accepted with verified service-token authentication"
+                    .to_string(),
+            ));
+        }
+        return caller_from_validated_metadata(metadata);
+    }
+
     let authenticated = authenticated_metadata(metadata)?;
     caller_from_authenticated_metadata(metadata, policy, authenticated)
 }
@@ -24,6 +34,17 @@ pub fn caller_from_metadata_with_required_idempotency(
     metadata: &MetadataMap,
     policy: RpcContextPolicy,
 ) -> DiscoveryResult<CallerContext> {
+    if policy.allow_unsigned_local_context && has_unsigned_context_metadata(metadata) {
+        if policy.service_token_verifier.is_some() {
+            return Err(DiscoveryError::Unauthenticated(
+                "unsigned context metadata is not accepted with verified service-token authentication"
+                    .to_string(),
+            ));
+        }
+        validate_required_idempotency_metadata(metadata)?;
+        return caller_from_validated_metadata(metadata);
+    }
+
     let authenticated = authenticated_metadata(metadata)?;
     validate_required_idempotency_metadata(metadata)?;
     caller_from_authenticated_metadata(metadata, policy, authenticated)
@@ -227,12 +248,49 @@ fn bearer_token(value: &str) -> Option<&str> {
     }
 }
 
-pub fn request_id_from_metadata(_metadata: &MetadataMap) -> DiscoveryResult<String> {
+pub fn request_id_from_metadata(metadata: &MetadataMap) -> DiscoveryResult<String> {
+    if let Some(request_id) = optional_metadata_value(metadata, "x-request-id")? {
+        let trimmed = request_id.trim();
+        if !trimmed.is_empty() {
+            validate_request_id(trimmed)?;
+            return Ok(trimmed.to_string());
+        }
+    }
+
     Ok(generate_request_id())
 }
 
+fn validate_request_id(value: &str) -> DiscoveryResult<()> {
+    const MAX_REQUEST_ID_LEN: usize = 128;
+
+    if value.len() > MAX_REQUEST_ID_LEN {
+        return Err(DiscoveryError::InvalidArgument(format!(
+            "x-request-id must be at most {MAX_REQUEST_ID_LEN} characters"
+        )));
+    }
+
+    Ok(())
+}
+
 pub fn trace_id_from_metadata(metadata: &MetadataMap) -> DiscoveryResult<String> {
-    Ok(optional_metadata_value(metadata, "traceparent")?.unwrap_or_default())
+    let traceparent = optional_metadata_value(metadata, "traceparent")?.unwrap_or_default();
+    Ok(parse_trace_id_from_traceparent(&traceparent).unwrap_or_default())
+}
+
+pub fn parse_trace_id_from_traceparent(traceparent: &str) -> Option<String> {
+    let trimmed = traceparent.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let mut parts = trimmed.split('-');
+    let _version = parts.next()?;
+    let trace_id = parts.next()?;
+    if trace_id.len() != 32 || !trace_id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return None;
+    }
+
+    Some(trace_id.to_ascii_lowercase())
 }
 
 pub fn idempotency_from_metadata(
@@ -301,5 +359,75 @@ fn parse_config_permission(value: &str) -> DiscoveryResult<ConfigPermission> {
         _ => Err(DiscoveryError::InvalidArgument(format!(
             "unknown config permission {value}"
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_trace_id_from_traceparent, request_id_from_metadata, validate_request_id};
+    use sdkwork_discovery_contract::DiscoveryError;
+    use tonic::metadata::MetadataMap;
+
+    #[test]
+    fn parse_trace_id_from_valid_traceparent() {
+        assert_eq!(
+            parse_trace_id_from_traceparent(
+                "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            )
+            .as_deref(),
+            Some("0af7651916cd43dd8448eb211c80319c")
+        );
+    }
+
+    #[test]
+    fn parse_trace_id_rejects_invalid_traceparent() {
+        assert_eq!(parse_trace_id_from_traceparent("not-a-traceparent"), None);
+        assert_eq!(parse_trace_id_from_traceparent(""), None);
+    }
+
+    #[test]
+    fn request_id_uses_gateway_metadata_when_present() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert("x-request-id", "req-gateway-1".parse().unwrap());
+
+        assert_eq!(
+            request_id_from_metadata(&metadata).unwrap(),
+            "req-gateway-1"
+        );
+    }
+
+    #[test]
+    fn request_id_generates_server_owned_id_when_metadata_missing() {
+        let metadata = MetadataMap::new();
+        let request_id = request_id_from_metadata(&metadata).unwrap();
+
+        assert!(request_id.starts_with("req_"));
+        assert!(request_id.len() > "req_".len());
+    }
+
+    #[test]
+    fn request_id_generates_server_owned_id_when_metadata_blank() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert("x-request-id", "   ".parse().unwrap());
+
+        let request_id = request_id_from_metadata(&metadata).unwrap();
+        assert!(request_id.starts_with("req_"));
+    }
+
+    #[test]
+    fn request_id_rejects_overlong_metadata_value() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert("x-request-id", "x".repeat(129).parse().unwrap());
+
+        let error = request_id_from_metadata(&metadata).unwrap_err();
+        assert!(matches!(error, DiscoveryError::InvalidArgument(_)));
+        assert!(error.to_string().contains("x-request-id"));
+    }
+
+    #[test]
+    fn validate_request_id_accepts_bounded_gateway_values() {
+        assert!(validate_request_id("req-gateway-1").is_ok());
+        assert!(validate_request_id(&"x".repeat(128)).is_ok());
+        assert!(validate_request_id(&"x".repeat(129)).is_err());
     }
 }

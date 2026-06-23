@@ -13,7 +13,7 @@ use crate::store::RedisDiscoveryStore;
 impl RegistryStore for RedisDiscoveryStore {
     async fn current_revision(&self) -> DiscoveryResult<u64> {
         self.hydrate_once().await?;
-        self.memory.lock().await.current_revision().await
+        Ok(self.memory.lock().await.current_revision())
     }
 
     async fn register_instance(

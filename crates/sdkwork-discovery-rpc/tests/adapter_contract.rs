@@ -168,7 +168,7 @@ async fn registry_service_rejects_missing_registry_write_permission() {
 
 #[tokio::test]
 async fn registry_service_rejects_missing_dual_token_metadata_before_permissions() {
-    let service = registry_service();
+    let service = RegistryRpcService::new(runtime_without_unsigned_local_context());
     let mut request = Request::new(register_request());
     request
         .metadata_mut()
@@ -197,6 +197,26 @@ async fn registry_service_rejects_missing_subject_identity_before_permissions() 
 
     assert_eq!(status.code(), Code::Unauthenticated);
     assert!(status.message().contains("x-sdkwork-subject-id"));
+}
+
+#[tokio::test]
+async fn registry_service_accepts_unsigned_local_context_without_bearer_tokens() {
+    let service = registry_service();
+    let mut request = Request::new(register_request());
+    request
+        .metadata_mut()
+        .insert("x-sdkwork-subject-id", "service-1".parse().unwrap());
+    request
+        .metadata_mut()
+        .insert("x-sdkwork-registry-permissions", "write".parse().unwrap());
+
+    let response = service
+        .register_instance(request)
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(response.lease_id, "lease-1");
 }
 
 #[tokio::test]
@@ -407,11 +427,32 @@ async fn registry_service_registers_instance_from_service_identity_metadata() {
 
     assert_eq!(response.lease_id, "lease-1");
     let request_id = response.metadata.unwrap().request_id;
-    assert!(
-        request_id.starts_with("req_"),
-        "expected server-generated request id, got {request_id}"
-    );
+    assert_eq!(request_id, "req-1");
     assert!(response.expires_at.is_some());
+}
+
+#[tokio::test]
+async fn registry_service_returns_parsed_trace_id_from_traceparent_metadata() {
+    let service = registry_service();
+    let mut request = Request::new(register_request());
+    add_registry_write_metadata(&mut request);
+    request.metadata_mut().insert(
+        "traceparent",
+        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            .parse()
+            .unwrap(),
+    );
+
+    let response = service
+        .register_instance(request)
+        .await
+        .unwrap()
+        .into_inner();
+
+    assert_eq!(
+        response.metadata.unwrap().trace_id,
+        "0af7651916cd43dd8448eb211c80319c"
+    );
 }
 
 #[tokio::test]
@@ -469,11 +510,7 @@ async fn registry_service_retrieve_instance_returns_registered_instance_by_ident
     assert_eq!(instance.priority, 0);
     assert_eq!(instance.status, ProtoInstanceStatus::Serving as i32);
     let metadata = response.metadata.unwrap();
-    assert!(
-        metadata.request_id.starts_with("req_"),
-        "expected server-generated request id, got {}",
-        metadata.request_id
-    );
+    assert_eq!(metadata.request_id, "req-retrieve-1");
     assert_eq!(metadata.revision, instance.revision);
 }
 
@@ -692,6 +729,7 @@ async fn registry_service_discover_instances_rejects_blank_protocol_filter_befor
         protocol: " ".to_string(),
         label_filters: vec![],
         sort_by: 0,
+        page: None,
     });
     add_registry_read_metadata(&mut request);
 
@@ -1407,6 +1445,7 @@ async fn admin_list_services_reads_registry_state_through_rpc_runtime() {
     let mut list = Request::new(ListServicesRequest {
         namespace: "sdkwork".to_string(),
         environment: "development".to_string(),
+        page: None,
     });
     list.metadata_mut()
         .insert("x-sdkwork-subject-id", "operator-1".parse().unwrap());
@@ -1418,6 +1457,199 @@ async fn admin_list_services_reads_registry_state_through_rpc_runtime() {
 
     assert_eq!(services.services.len(), 1);
     assert_eq!(services.services[0].service_name, "sdkwork-drive-product");
+}
+
+#[tokio::test]
+async fn registry_discover_instances_returns_page_token_for_sorted_results() {
+    let runtime = runtime();
+    let registry = RegistryRpcService::new(runtime);
+
+    for (instance_id, port) in [("drive-a", 50051), ("drive-b", 50052), ("drive-c", 50053)] {
+        let mut register = Request::new(RegisterInstanceRequest {
+            instance_id: instance_id.to_string(),
+            endpoint: format!("grpc://127.0.0.1:{port}"),
+            ..register_request()
+        });
+        add_registry_write_metadata(&mut register);
+        registry.register_instance(register).await.unwrap();
+    }
+
+    let mut first = Request::new(DiscoverInstancesRequest {
+        namespace: "sdkwork".to_string(),
+        environment: "development".to_string(),
+        service_name: "sdkwork-drive-product".to_string(),
+        healthy_only: true,
+        protocol: String::new(),
+        label_filters: vec![],
+        sort_by: 1,
+        page: Some(common_proto::PageRequest {
+            page_size: 2,
+            page_token: String::new(),
+        }),
+    });
+    add_registry_read_metadata(&mut first);
+
+    let first_page = registry
+        .discover_instances(first)
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(first_page.instances.len(), 2);
+    assert_eq!(first_page.instances[0].instance_id, "drive-a");
+    assert_eq!(first_page.page.as_ref().unwrap().next_page_token, "drive-b");
+
+    let mut second = Request::new(DiscoverInstancesRequest {
+        namespace: "sdkwork".to_string(),
+        environment: "development".to_string(),
+        service_name: "sdkwork-drive-product".to_string(),
+        healthy_only: true,
+        protocol: String::new(),
+        label_filters: vec![],
+        sort_by: 1,
+        page: Some(common_proto::PageRequest {
+            page_size: 2,
+            page_token: "drive-b".to_string(),
+        }),
+    });
+    add_registry_read_metadata(&mut second);
+
+    let second_page = registry
+        .discover_instances(second)
+        .await
+        .unwrap()
+        .into_inner();
+    assert_eq!(second_page.instances.len(), 1);
+    assert_eq!(second_page.instances[0].instance_id, "drive-c");
+    assert!(second_page
+        .page
+        .as_ref()
+        .unwrap()
+        .next_page_token
+        .is_empty());
+}
+
+#[tokio::test]
+async fn registry_discover_instances_rejects_page_token_with_weighted_random_sort() {
+    let service = RegistryRpcService::new(runtime());
+    let mut request = Request::new(DiscoverInstancesRequest {
+        namespace: "sdkwork".to_string(),
+        environment: "development".to_string(),
+        service_name: "sdkwork-drive-product".to_string(),
+        healthy_only: true,
+        protocol: String::new(),
+        label_filters: vec![],
+        sort_by: 4,
+        page: Some(common_proto::PageRequest {
+            page_size: 10,
+            page_token: "drive-a".to_string(),
+        }),
+    });
+    request.metadata_mut().insert(
+        "traceparent",
+        "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            .parse()
+            .unwrap(),
+    );
+    request
+        .metadata_mut()
+        .insert("x-request-id", "req-discover-page-token".parse().unwrap());
+    add_registry_read_metadata(&mut request);
+
+    let status = service.discover_instances(request).await.unwrap_err();
+
+    assert_eq!(status.code(), Code::InvalidArgument);
+    assert!(status.message().contains("page_token"));
+    assert!(status.message().contains("weighted-random"));
+    assert_eq!(
+        status
+            .metadata()
+            .get("x-trace-id")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "0af7651916cd43dd8448eb211c80319c"
+    );
+    assert_eq!(
+        status
+            .metadata()
+            .get("x-request-id")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "req-discover-page-token"
+    );
+}
+
+#[tokio::test]
+async fn admin_list_services_returns_page_token_when_more_services_exist() {
+    let runtime = runtime();
+    let registry = RegistryRpcService::new(runtime.clone());
+    let admin = DiscoveryAdminRpcService::new(runtime);
+
+    let mut drive = Request::new(register_request());
+    add_registry_write_metadata(&mut drive);
+    registry.register_instance(drive).await.unwrap();
+
+    let mut config = Request::new(RegisterInstanceRequest {
+        service_name: "sdkwork-config-product".to_string(),
+        instance_id: "config-1".to_string(),
+        endpoint: "grpc://127.0.0.1:50052".to_string(),
+        ..register_request()
+    });
+    add_registry_write_metadata(&mut config);
+    registry.register_instance(config).await.unwrap();
+
+    let mut list = Request::new(ListServicesRequest {
+        namespace: "sdkwork".to_string(),
+        environment: "development".to_string(),
+        page: Some(common_proto::PageRequest {
+            page_size: 1,
+            page_token: String::new(),
+        }),
+    });
+    list.metadata_mut()
+        .insert("x-sdkwork-subject-id", "operator-1".parse().unwrap());
+    list.metadata_mut()
+        .insert("x-sdkwork-registry-permissions", "read".parse().unwrap());
+    add_auth_metadata(&mut list);
+
+    let first_page = admin.list_services(list).await.unwrap().into_inner();
+    assert_eq!(first_page.services.len(), 1);
+    assert_eq!(
+        first_page.services[0].service_name,
+        "sdkwork-config-product"
+    );
+    assert_eq!(
+        first_page.page.as_ref().unwrap().next_page_token,
+        "sdkwork-config-product"
+    );
+
+    let mut next = Request::new(ListServicesRequest {
+        namespace: "sdkwork".to_string(),
+        environment: "development".to_string(),
+        page: Some(common_proto::PageRequest {
+            page_size: 1,
+            page_token: "sdkwork-config-product".to_string(),
+        }),
+    });
+    next.metadata_mut()
+        .insert("x-sdkwork-subject-id", "operator-1".parse().unwrap());
+    next.metadata_mut()
+        .insert("x-sdkwork-registry-permissions", "read".parse().unwrap());
+    add_auth_metadata(&mut next);
+
+    let second_page = admin.list_services(next).await.unwrap().into_inner();
+    assert_eq!(second_page.services.len(), 1);
+    assert_eq!(
+        second_page.services[0].service_name,
+        "sdkwork-drive-product"
+    );
+    assert!(second_page
+        .page
+        .as_ref()
+        .unwrap()
+        .next_page_token
+        .is_empty());
 }
 
 fn sdk_manifest_methods(manifest: &Value) -> Vec<Vec<&str>> {
@@ -1632,6 +1864,7 @@ async fn discover_instances_status_for_filter(
         protocol: "grpc".to_string(),
         label_filters: vec![],
         sort_by: 0,
+        page: None,
     });
     add_registry_read_metadata(&mut request);
 
@@ -1684,6 +1917,7 @@ async fn list_services_status_for_filter_with_fail_store(
     let mut request = Request::new(ListServicesRequest {
         namespace: namespace.to_string(),
         environment: environment.to_string(),
+        page: None,
     });
     request
         .metadata_mut()
