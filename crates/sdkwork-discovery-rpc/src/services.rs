@@ -212,10 +212,10 @@ where
                     "RegistryService",
                     "RegisterInstance",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let command = codec::register_instance_command(request.into_inner(), codec::now_millis())
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -299,11 +299,11 @@ where
                     "RegistryService",
                     "BatchRegisterInstances",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let commands =
             codec::batch_register_instances_commands(request.into_inner(), codec::now_millis())
-                .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+                .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         match self
             .runtime
             .batch_register_instances(caller, commands)
@@ -359,10 +359,10 @@ where
                     "RegistryService",
                     "RenewLease",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let command = codec::renew_lease_command(request.into_inner(), codec::now_millis())
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -446,10 +446,10 @@ where
                     "RegistryService",
                     "DeregisterInstance",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
-        let request =
-            codec::deregister_instance_request(request.into_inner()).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        let request = codec::deregister_instance_request(request.into_inner())
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -548,10 +548,10 @@ where
                     "RegistryService",
                     "ReportInstanceStatus",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let command = codec::report_status_command(request.into_inner(), codec::now_millis())
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -635,9 +635,10 @@ where
                         "RegistryService",
                         "RetrieveInstance",
                     );
-                    map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                    map_guard_rpc_err(&mut metrics, e, map_rpc_err)
                 })?;
-        let query = codec::retrieve_instance_query(request.into_inner()).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        let query = codec::retrieve_instance_query(request.into_inner())
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -741,9 +742,10 @@ where
                     "RegistryService",
                     "DiscoverInstances",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
-        let query = codec::discover_instances_query(request.into_inner()).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        let query = codec::discover_instances_query(request.into_inner())
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -840,10 +842,10 @@ where
                     "DiscoveryConfigService",
                     "RetrieveEffectiveConfig",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
-        let query =
-            codec::retrieve_effective_config_query(request.into_inner()).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        let query = codec::retrieve_effective_config_query(request.into_inner())
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -940,16 +942,23 @@ where
                     "DiscoveryConfigService",
                     "WatchConfig",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        codec::validate_required_field("environment", &request.environment).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        codec::validate_required_field("application", &request.application).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        codec::validate_required_field("namespace", &request.namespace)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        codec::validate_required_field("environment", &request.environment)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        codec::validate_required_field("application", &request.application)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         codec::validate_required_field("service_name", &request.service_name)
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        codec::validate_required_field("group", &request.group).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        let permit = self.acquire_stream_permit()?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        codec::validate_required_field("group", &request.group)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        let permit = self.acquire_stream_permit().map_err(|status| {
+            metrics.record_error("RESOURCE_EXHAUSTED", "watch_stream_limit");
+            status
+        })?;
         let query = sdkwork_discovery_contract::WatchEventsQuery {
             namespace: request.namespace,
             environment: request.environment,
@@ -964,7 +973,7 @@ where
             .runtime
             .watch_config_events(caller.clone(), query.clone())
             .await
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let (sender, receiver) = mpsc::channel(self.config.event_buffer_size);
         let heartbeat_interval = Duration::from_millis(self.config.heartbeat_interval_ms);
         let durable_poll_interval = Duration::from_millis(self.config.durable_poll_interval_ms);
@@ -1033,7 +1042,7 @@ where
         );
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.drafts.create")
-                .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+                .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -1044,12 +1053,12 @@ where
                 "DiscoveryAdminService",
                 "CreateConfigDraft",
             );
-            map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+            map_guard_rpc_err(&mut metrics, e, map_rpc_err)
         })?;
         let created_by = caller.subject_id.clone();
         let command =
             codec::create_config_draft_command(request.into_inner(), created_by, idempotency)
-                .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+                .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1131,7 +1140,7 @@ where
         );
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.releases.publish")
-                .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+                .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -1142,7 +1151,7 @@ where
                 "DiscoveryAdminService",
                 "PublishConfig",
             );
-            map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+            map_guard_rpc_err(&mut metrics, e, map_rpc_err)
         })?;
         let published_by = caller.subject_id.clone();
         let command = codec::publish_config_command(
@@ -1151,7 +1160,7 @@ where
             codec::now_millis(),
             idempotency,
         )
-        .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1230,7 +1239,7 @@ where
         );
         let idempotency =
             idempotency_from_metadata(request.metadata(), "discovery.config.releases.rollback")
-                .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+                .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let caller = caller_from_metadata_with_required_idempotency(
             request.metadata(),
             self.runtime.context_policy(),
@@ -1241,7 +1250,7 @@ where
                 "DiscoveryAdminService",
                 "RollbackConfig",
             );
-            map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+            map_guard_rpc_err(&mut metrics, e, map_rpc_err)
         })?;
         let rolled_back_by = caller.subject_id.clone();
         let command = codec::rollback_config_command(
@@ -1250,7 +1259,7 @@ where
             codec::now_millis(),
             idempotency,
         )
-        .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1334,9 +1343,10 @@ where
                     "DiscoveryAdminService",
                     "ListServices",
                 );
-                map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
-        let query = codec::list_services_query(request.into_inner()).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        let query = codec::list_services_query(request.into_inner())
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         debug!(
             request_id = %request_id,
             trace_id = %trace_id,
@@ -1448,14 +1458,19 @@ where
                         "DiscoveryWatchService",
                         "WatchService",
                     );
-                    map_guard_rpc_err(&mut metrics, e, &map_rpc_err)
+                    map_guard_rpc_err(&mut metrics, e, map_rpc_err)
                 })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        codec::validate_required_field("environment", &request.environment).map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+        codec::validate_required_field("namespace", &request.namespace)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        codec::validate_required_field("environment", &request.environment)
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         codec::validate_required_field("service_name", &request.service_name)
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
-        let permit = self.acquire_stream_permit()?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
+        let permit = self.acquire_stream_permit().map_err(|status| {
+            metrics.record_error("RESOURCE_EXHAUSTED", "watch_stream_limit");
+            status
+        })?;
         let query = sdkwork_discovery_contract::WatchEventsQuery {
             namespace: request.namespace,
             environment: request.environment,
@@ -1470,7 +1485,7 @@ where
             .runtime
             .watch_registry_events(caller.clone(), query.clone())
             .await
-            .map_err(|error| map_guard_rpc_err(&mut metrics, error, &map_rpc_err))?;
+            .map_err(|error| .map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let (sender, receiver) = mpsc::channel(self.config.event_buffer_size);
         let heartbeat_interval = Duration::from_millis(self.config.heartbeat_interval_ms);
         let durable_poll_interval = Duration::from_millis(self.config.durable_poll_interval_ms);
