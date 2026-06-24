@@ -1,4 +1,5 @@
-# SDKWork Discovery Topology
+> Migrated from `docs/topology-standard.md` on 2026-06-24.
+> Owner: SDKWork maintainers
 
 Archetype: `application-http-gateway` (`specs/topology.spec.json`, `schemaVersion: 2`).
 
@@ -42,3 +43,4 @@ Dry-run orchestration:
 ```bash
 node scripts/discovery-dev.mjs --dry-run
 ```
+

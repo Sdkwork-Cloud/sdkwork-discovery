@@ -108,8 +108,8 @@ assert.ok(fs.existsSync(path.join(repoRoot, 'specs/topology.spec.json')), 'topol
 const spec = JSON.parse(readText('specs/topology.spec.json'));
 assert.equal(spec.schemaVersion, 2);
 assert.equal(spec.archetype, 'application-http-gateway');
-assert.equal(spec.defaults.developmentProfileId, 'self-hosted.unified-process.development');
-assert.equal(spec.defaults.productionProfileId, 'cloud-hosted.unified-process.production');
+assert.equal(spec.defaults.developmentProfileId, 'standalone.unified-process.development');
+assert.equal(spec.defaults.productionProfileId, 'cloud.unified-process.production');
 assert.ok(spec.surfaces['application.public-ingress']);
 assert.ok(spec.surfaces['operations.control-ingress']);
 
@@ -174,7 +174,7 @@ assert.equal(spec.scripts?.pnpm?.['discovery:dev:cloud']?.hosting, 'cloud-hosted
 const { loadProfile, resolveSurfaceGrpcUrl } = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/lib/discovery-topology.mjs')).href
 );
-const devProfileEnv = loadProfile('self-hosted.unified-process.development');
+const devProfileEnv = loadProfile('standalone.unified-process.development');
 assert.equal(
   resolveSurfaceGrpcUrl(devProfileEnv),
   'grpc://127.0.0.1:19090',

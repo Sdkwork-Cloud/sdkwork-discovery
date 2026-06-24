@@ -27,7 +27,7 @@ function cargoCommand() {
 
 function parseArgs(argv) {
   const settings = {
-    hosting: 'self-hosted',
+    deploymentProfile: 'standalone',
     serviceLayout: 'unified-process',
     dryRun: false,
     help: false,
@@ -39,10 +39,15 @@ function parseArgs(argv) {
       settings.help = true;
       continue;
     }
-    if (arg === '--hosting') {
-      settings.hosting = argv[index + 1] ?? settings.hosting;
+    if (arg === '--deployment-profile') {
+      settings.deploymentProfile = argv[index + 1] ?? settings.deploymentProfile;
       index += 1;
       continue;
+    }
+    if (arg === '--hosting') {
+      throw new Error(
+        '--hosting is retired; use --deployment-profile (standalone or cloud)',
+      );
     }
     if (arg === '--service-layout') {
       settings.serviceLayout = argv[index + 1] ?? settings.serviceLayout;
@@ -51,7 +56,7 @@ function parseArgs(argv) {
     }
     if (arg === '--topology') {
       throw new Error(
-        '--topology is retired; use --hosting (standalone -> self-hosted, cloud -> cloud-hosted)',
+        '--topology is retired; use --deployment-profile and --service-layout',
       );
     }
     if (arg === '--dry-run') {
@@ -68,7 +73,7 @@ function printHelp() {
 Topology-aware Discovery dev entry. Loads configs/topology profile env via @sdkwork/app-topology.
 
 Options:
-  --hosting <self-hosted|cloud-hosted>              Default: self-hosted
+  --deployment-profile <standalone|cloud>           Default: standalone
   --service-layout <unified-process>                Default: unified-process
   --dry-run                                         Print plan without executing
   --help, -h
@@ -109,7 +114,7 @@ async function main() {
   }
 
   const profileId =
-    resolveDevProfileId(settings.hosting, settings.serviceLayout) || DEFAULT_DEV_PROFILE_ID;
+    resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout) || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
   const processes = listOrchestrationProcesses(profileId);
   const serviceProcess = processes.find((process) => process.id === 'application.public-ingress');
@@ -122,6 +127,7 @@ async function main() {
   const runtimeEnv = filterDiscoveryProcessEnv(
     mergeRuntimeEnv(process.env, profileEnv, {
       SDKWORK_DISCOVERY_PROFILE_ID: profileId,
+      SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE: settings.deploymentProfile,
     }),
   );
 

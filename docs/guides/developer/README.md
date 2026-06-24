@@ -54,7 +54,7 @@ Read before editing public behavior:
 
 1. [AGENTS.md](../../../AGENTS.md)
 2. [specs/component.spec.json](../../../specs/component.spec.json)
-3. [PRD.md](../../product/PRD.md) and [TECH_ARCHITECTURE.md](../../architecture/TECH_ARCHITECTURE.md)
+3. [PRD.md](../../product/prd/PRD.md) and [TECH_ARCHITECTURE.md](../../architecture/tech/TECH_ARCHITECTURE.md)
 
 Rules:
 

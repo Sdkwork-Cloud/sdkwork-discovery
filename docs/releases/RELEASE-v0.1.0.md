@@ -87,4 +87,4 @@ See [CHANGELOG.md](../changelogs/CHANGELOG.md).
 ## Linked Evidence
 
 - [Release gate review](../engineering/reviews/REVIEW-20260623-release-gate-v0.1.0.md)
-- [PRD.md](../product/PRD.md)
+- [PRD.md](../product/prd/PRD.md)

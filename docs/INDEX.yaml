@@ -2,8 +2,8 @@ schemaVersion: 1
 kind: sdkwork.docs.index
 repository: sdkwork-discovery
 canon:
-  prd: docs/product/PRD.md
-  techArchitecture: docs/architecture/TECH_ARCHITECTURE.md
+  prd: docs/product/prd/PRD.md
+  techArchitecture: docs/architecture/tech/TECH_ARCHITECTURE.md
 entries:
   - id: guide-developer
     path: docs/guides/developer/README.md

@@ -60,4 +60,4 @@ Release gate satisfied for **server runtime target** artifacts at version **0.1.
 
 - [RELEASE-v0.1.0.md](../../releases/RELEASE-v0.1.0.md)
 - [CHANGELOG.md](../../changelogs/CHANGELOG.md)
-- [PRD.md](../../product/PRD.md)
+- [PRD.md](../../product/prd/PRD.md)

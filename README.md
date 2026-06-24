@@ -104,5 +104,6 @@ Read `AGENTS.md`, `specs/component.spec.json`, and `docs/superpowers/specs/2026-
 ## Documentation Canon
 
 - [docs/README.md](docs/README.md)
-- [docs/product/PRD.md](docs/product/PRD.md)
-- [docs/architecture/TECH_ARCHITECTURE.md](docs/architecture/TECH_ARCHITECTURE.md)
+- [docs/product/prd/PRD.md](docs/product/prd/PRD.md)
+- [docs/architecture/tech/TECH_ARCHITECTURE.md](docs/architecture/tech/TECH_ARCHITECTURE.md)
+
