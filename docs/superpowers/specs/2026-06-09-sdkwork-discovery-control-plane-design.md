@@ -37,7 +37,7 @@ The repository is a Rust workspace modeled after `sdkwork-drive`, with focused c
 - `sdkwork-discovery-storage-contract`: storage ports for registry, config, revision, and event persistence.
 - `sdkwork-discovery-storage-memory`: deterministic in-memory store for tests and local development.
 - `sdkwork-discovery-core`: application services and policy enforcement over storage ports.
-- `sdkwork-discovery-product`: runnable process bootstrap, storage composition, and tonic gRPC server lifecycle.
+- `sdkwork-discovery-service-host`: runnable process bootstrap, storage composition, and tonic gRPC server lifecycle.
 
 The RPC contract lives under `proto/` and `sdks/sdkwork-discovery-rpc-sdk/`. The Rust proto crate generates tonic/prost bindings at build time from checked-in proto source. Generated output must not be hand-edited. Core logic stays independent from generated RPC transport so RPC adapters remain thin.
 

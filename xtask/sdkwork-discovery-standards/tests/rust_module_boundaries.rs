@@ -120,6 +120,13 @@ fn durable_storage_crates_integrate_sdkwork_database() {
         .exists());
     assert!(workspace_root.join("scripts/package-server.mjs").exists());
     assert!(workspace_root.join(".github/workflows/verify.yml").exists());
+
+    let verify_workflow =
+        fs::read_to_string(workspace_root.join(".github/workflows/verify.yml")).unwrap();
+    assert!(verify_workflow.contains("sdkwork-specs"));
+    assert!(verify_workflow.contains("sdkwork-app-topology"));
+    assert!(verify_workflow.contains("sdkwork-database"));
+    assert!(verify_workflow.contains("package-smoke"));
 }
 
 #[test]
@@ -139,6 +146,32 @@ fn production_ops_artifacts_are_present() {
     assert!(package_script.contains("prometheusFeature"));
     assert!(package_script.contains("--features"));
     assert!(package_script.contains("prometheus"));
+    assert!(workspace_root
+        .join("docs/runbooks/RUNBOOK-production-server-deployment.md")
+        .exists());
+    assert!(workspace_root
+        .join("docs/runbooks/RUNBOOK-database-migration-rollback.md")
+        .exists());
+
+    let prd = fs::read_to_string(workspace_root.join("docs/product/PRD.md")).unwrap();
+    let tech_arch =
+        fs::read_to_string(workspace_root.join("docs/architecture/TECH_ARCHITECTURE.md")).unwrap();
+    assert!(prd.contains("Service Registry"));
+    assert!(prd.contains("Config Registry"));
+    assert!(tech_arch.contains("sdkwork-discovery-rpc-sdk"));
+    assert!(tech_arch.contains("Security, Privacy, And Observability"));
+
+    let package_json = fs::read_to_string(workspace_root.join("package.json")).unwrap();
+    assert!(package_json.contains("verify:docs"));
+    assert!(package_json.contains("test:docs-canon"));
+
+    assert!(workspace_root.join("docs/changelogs/CHANGELOG.md").exists());
+    assert!(workspace_root
+        .join("docs/releases/RELEASE-v0.1.0.md")
+        .exists());
+    assert!(workspace_root
+        .join("docs/engineering/reviews/REVIEW-20260623-release-gate-v0.1.0.md")
+        .exists());
 }
 
 #[test]

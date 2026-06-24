@@ -238,6 +238,8 @@ async function packageServer(context) {
 
   await copyFile(context.binaryPath, path.join(context.stageRoot, 'bin', context.binaryName));
   await copyConfigExamples(context.stageRoot);
+  await copyRunbooks(context.stageRoot);
+  await copyReleaseEvidence(context.stageRoot, context.version);
   await copyIfExists('README.md', path.join(context.stageRoot, 'README.md'));
   await copyIfExists('sdkwork.app.config.json', path.join(context.stageRoot, 'sdkwork.app.config.json'));
   await copyIfExists(path.join('specs', 'component.spec.json'), path.join(context.stageRoot, 'specs', 'component.spec.json'));
@@ -269,6 +271,38 @@ function runCargoBuild(context) {
     args.push('--target', context.rustTarget);
   }
   run('cargo', args, { cwd: appRoot });
+}
+
+async function copyRunbooks(stageRoot) {
+  const runbookDir = path.join(stageRoot, 'docs', 'runbooks');
+  await mkdir(runbookDir, { recursive: true });
+  for (const fileName of [
+    'README.md',
+    'RUNBOOK-production-server-deployment.md',
+    'RUNBOOK-database-migration-rollback.md',
+  ]) {
+    const source = path.join(appRoot, 'docs', 'runbooks', fileName);
+    if (existsSync(source)) {
+      await copyFile(source, path.join(runbookDir, fileName));
+    }
+  }
+}
+
+async function copyReleaseEvidence(stageRoot, version) {
+  const changelogDir = path.join(stageRoot, 'docs', 'changelogs');
+  const releaseDir = path.join(stageRoot, 'docs', 'releases');
+  await mkdir(changelogDir, { recursive: true });
+  await mkdir(releaseDir, { recursive: true });
+
+  const changelogSource = path.join(appRoot, 'docs', 'changelogs', 'CHANGELOG.md');
+  if (existsSync(changelogSource)) {
+    await copyFile(changelogSource, path.join(changelogDir, 'CHANGELOG.md'));
+  }
+
+  const releaseSource = path.join(appRoot, 'docs', 'releases', `RELEASE-v${version}.md`);
+  if (existsSync(releaseSource)) {
+    await copyFile(releaseSource, path.join(releaseDir, `RELEASE-v${version}.md`));
+  }
 }
 
 async function copyConfigExamples(stageRoot) {
@@ -329,6 +363,16 @@ The process handles SIGTERM and Ctrl+C for graceful shutdown: health status is c
 - gRPC health: enabled when \`[server].enable_health = true\` on the configured bind.
 - Prometheus: this package is built with the \`prometheus\` feature. Scrape \`SDKWORK_DISCOVERY_METRICS_BIND\` (default \`127.0.0.1:9090\`).
 - Process gauge: \`discovery_health_status\` (1=serving, 0=shutting down).
+
+## Runbooks
+
+- \`docs/runbooks/RUNBOOK-production-server-deployment.md\`
+- \`docs/runbooks/RUNBOOK-database-migration-rollback.md\`
+
+## Release notes
+
+- \`docs/changelogs/CHANGELOG.md\`
+- \`docs/releases/RELEASE-v${context.version}.md\`
 `;
 }
 
@@ -346,6 +390,14 @@ function createInstallManifest(context) {
     configExamples: [
       'config/discovery.example.toml',
       'config/discovery.production.example.toml',
+    ],
+    runbooks: [
+      'docs/runbooks/RUNBOOK-production-server-deployment.md',
+      'docs/runbooks/RUNBOOK-database-migration-rollback.md',
+    ],
+    releaseEvidence: [
+      'docs/changelogs/CHANGELOG.md',
+      `docs/releases/RELEASE-v${context.version}.md`,
     ],
     observability: {
       prometheusFeature: true,
@@ -403,6 +455,10 @@ async function validateArchive(context) {
     `${context.stageName}/bin/${context.binaryName}`,
     `${context.stageName}/config/discovery.example.toml`,
     `${context.stageName}/config/discovery.production.example.toml`,
+    `${context.stageName}/docs/runbooks/RUNBOOK-production-server-deployment.md`,
+    `${context.stageName}/docs/runbooks/RUNBOOK-database-migration-rollback.md`,
+    `${context.stageName}/docs/changelogs/CHANGELOG.md`,
+    `${context.stageName}/docs/releases/RELEASE-v${context.version}.md`,
     `${context.stageName}/INSTALL.md`,
     `${context.stageName}/install-manifest.json`,
     `${context.stageName}/checksums.sha256`,

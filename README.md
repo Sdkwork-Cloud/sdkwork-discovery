@@ -52,6 +52,10 @@ The safe process env overlay supports lifecycle/runtime fields, topology surface
 
 Production-oriented config template: `etc/discovery.production.example.toml`. Development template: `etc/discovery.example.toml`.
 
+Operator runbooks: [production deployment](docs/runbooks/RUNBOOK-production-server-deployment.md), [database migration rollback](docs/runbooks/RUNBOOK-database-migration-rollback.md).
+
+Release evidence: [CHANGELOG](docs/changelogs/CHANGELOG.md), [RELEASE v0.1.0](docs/releases/RELEASE-v0.1.0.md), [release gate review](docs/engineering/reviews/REVIEW-20260623-release-gate-v0.1.0.md).
+
 TLS and mTLS are configured through secret-file references under `[security]` or the matching private process env overlay:
 
 - `server_tls_cert_file` or `SDKWORK_DISCOVERY_RPC_SERVER_TLS_CERT_FILE`
@@ -96,3 +100,9 @@ Live fanout is process-local. In a horizontally scaled PostgreSQL deployment, cl
 ## Standards
 
 Read `AGENTS.md`, `specs/component.spec.json`, and `docs/superpowers/specs/2026-06-09-sdkwork-discovery-control-plane-design.md` before changing public behavior, RPC contracts, storage contracts, runtime config, or verification.
+
+## Documentation Canon
+
+- [docs/README.md](docs/README.md)
+- [docs/product/PRD.md](docs/product/PRD.md)
+- [docs/architecture/TECH_ARCHITECTURE.md](docs/architecture/TECH_ARCHITECTURE.md)

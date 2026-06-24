@@ -35,6 +35,12 @@ Read the root `sdkwork.app.config.json` before changing application behavior, ru
 - `sdks/`: RPC SDK family manifests and generated SDK artifacts.
 - `crates/`, `services/`, `etc/`, `docs/`: Rust crates, runnable services, runtime config templates, and design evidence.
 
+## Documentation Canon
+
+- [docs/README.md](docs/README.md)
+- [docs/product/PRD.md](docs/product/PRD.md)
+- [docs/architecture/TECH_ARCHITECTURE.md](docs/architecture/TECH_ARCHITECTURE.md)
+
 ## Spec Resolution Order
 
 1. Read this `AGENTS.md` and any nearer component-level `AGENTS.md`.
