@@ -156,48 +156,6 @@
         "healthSurfaces": [
           "application.public-ingress"
         ]
-      },
-      "cloud.split-services.development": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway-api-server",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": false
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-discovery-service-host",
-            "binary": "sdkwork-discovery-service-host",
-            "required": true
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress",
-          "platform.api-gateway"
-        ]
-      },
-      "cloud.split-services.production": {
-        "processes": [
-          {
-            "id": "platform.api-gateway",
-            "crate": "sdkwork-api-cloud-gateway-api-server",
-            "binary": "sdkwork-api-cloud-gateway",
-            "repository": "sdkwork-api-cloud-gateway",
-            "required": false
-          },
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-discovery-service-host",
-            "binary": "sdkwork-discovery-service-host",
-            "required": true
-          }
-        ],
-        "healthSurfaces": [
-          "application.public-ingress",
-          "platform.api-gateway"
-        ]
       }
     }
   },
@@ -226,13 +184,13 @@
     "pnpm": {
       "discovery:dev": {
         "script": "discovery:dev",
-        "hosting": "self-hosted",
+        "deploymentProfile": "standalone",
         "serviceLayout": "unified-process",
         "target": "server"
       },
       "discovery:dev:cloud": {
         "script": "discovery:dev:cloud",
-        "hosting": "cloud-hosted",
+        "deploymentProfile": "cloud",
         "serviceLayout": "unified-process",
         "target": "server"
       },

@@ -168,8 +168,8 @@ assert.match(
 );
 
 assert.equal(spec.scripts?.discoveryDev, 'scripts/discovery-dev.mjs');
-assert.equal(spec.scripts?.pnpm?.['discovery:dev']?.hosting, 'self-hosted');
-assert.equal(spec.scripts?.pnpm?.['discovery:dev:cloud']?.hosting, 'cloud-hosted');
+assert.equal(spec.scripts?.pnpm?.['discovery:dev']?.deploymentProfile, 'standalone');
+assert.equal(spec.scripts?.pnpm?.['discovery:dev:cloud']?.deploymentProfile, 'cloud');
 
 const { loadProfile, resolveSurfaceGrpcUrl } = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/lib/discovery-topology.mjs')).href
