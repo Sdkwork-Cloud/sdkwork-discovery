@@ -30,7 +30,7 @@
     "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check",
     "package:server": "node scripts/package-server.mjs package",
     "package:server:validate": "node scripts/package-server.mjs validate",
-    "db:materialize:contract": "node tools/materialize_discovery_database_contract.mjs",
+    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql --module-id discovery --owner discovery-platform --prefixes discovery_ --engines postgres,sqlite",
     "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
     "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
     "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
@@ -43,6 +43,8 @@
     "test:contract:database": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
     "topology:plan": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs plan --root . --spec specs/topology.spec.json",
     "gateway:package:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .",
-    "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root ."
+    "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root .",
+    "db:postgres:init": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .",
+    "db:postgres:plan": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run"
   }
 }

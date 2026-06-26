@@ -3,6 +3,8 @@
 import { spawn } from 'node:child_process';
 import process from 'node:process';
 
+import { ensurePostgresDevEnvFile, loadEnvFile } from '../../../sdkwork-app-topology/tools/topology/lib/env-file.mjs';
+
 import {
   DEFAULT_DEV_PROFILE_ID,
   filterDiscoveryProcessEnv,
@@ -116,6 +118,8 @@ async function main() {
   const profileId =
     resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout) || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
+  ensurePostgresDevEnvFile(REPO_ROOT, { stdout: console });
+  const postgresEnv = loadEnvFile('.env.postgres', REPO_ROOT);
   const processes = listOrchestrationProcesses(profileId);
   const serviceProcess = processes.find((process) => process.id === 'application.public-ingress');
   if (!serviceProcess?.crate) {
@@ -125,7 +129,7 @@ async function main() {
   }
 
   const runtimeEnv = filterDiscoveryProcessEnv(
-    mergeRuntimeEnv(process.env, profileEnv, {
+    mergeRuntimeEnv(process.env, profileEnv, postgresEnv, {
       SDKWORK_DISCOVERY_PROFILE_ID: profileId,
       SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE: settings.deploymentProfile,
     }),
