@@ -6,6 +6,7 @@ mod codec;
 mod context;
 pub mod degradation;
 mod error;
+mod health;
 mod health_probes;
 mod manifest;
 pub mod metrics;
@@ -25,11 +26,14 @@ pub use error::attach_rpc_correlation_metadata;
 pub use error::grpc_status_code_for_discovery_error;
 pub use error::map_discovery_error_to_rpc_status;
 pub use error::map_discovery_error_to_status;
+pub use health::{
+    spawn_health_sync, DiscoveryHealthState, DiscoveryHealthStatus, DEFAULT_HEALTH_SYNC_INTERVAL,
+};
 pub use manifest::discovery_rpc_service_manifest;
 pub use manifest::DiscoveryRpcMethod;
 pub use manifest::DiscoveryRpcServiceManifest;
 #[rustfmt::skip]
-pub use metrics::{decrement_active_streams, describe_metrics, increment_active_streams, init_telemetry_context, record_auth_failure, set_health_status, RpcMetrics, RpcTelemetryContext};
+pub use metrics::{decrement_active_streams, describe_metrics, increment_active_streams, init_telemetry_context, record_auth_failure, set_health_status, set_health_status_value, RpcMetrics, RpcTelemetryContext};
 pub use rate_limiter::{RateLimitConfig, TokenBucketRateLimiter};
 pub use resilience::{RuntimeResilience, RuntimeResilienceConfig};
 pub use server::DiscoveryRpcServerConfig;

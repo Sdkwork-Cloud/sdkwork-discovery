@@ -25,6 +25,10 @@ fn discovery_health_pair() -> (tonic_health::server::HealthReporter, DiscoveryHe
     (reporter, server)
 }
 
+use crate::health::{
+    spawn_health_sync, DiscoveryHealthState, DiscoveryHealthStatus, DEFAULT_HEALTH_SYNC_INTERVAL,
+};
+use crate::metrics::set_health_status_value;
 use crate::services::DiscoveryWatchServiceConfig;
 use crate::{
     DiscoveryAdminRpcService, DiscoveryConfigRpcService, DiscoveryRpcRuntime,
@@ -116,6 +120,17 @@ pub struct DiscoveryRpcServerHandle {
     join_handle: tokio::task::JoinHandle<DiscoveryResult<()>>,
     health_reporter: Option<tonic_health::server::HealthReporter>,
     health_service_names: Vec<String>,
+    health_sync_handle: Option<tokio::task::JoinHandle<()>>,
+    health_state: Option<DiscoveryHealthState>,
+}
+
+impl DiscoveryRpcServerHandle {
+    /// Returns the shared runtime health state, when gRPC health reporting is
+    /// enabled. HTTP readiness probes in the service host read this cell to
+    /// derive `/readyz` without touching the resilience internals.
+    pub fn health_state(&self) -> Option<DiscoveryHealthState> {
+        self.health_state.clone()
+    }
 }
 
 impl<S> DiscoveryRpcServices<S> {
@@ -240,9 +255,14 @@ impl DiscoveryRpcServerHandle {
 
     pub async fn shutdown(mut self) {
         info!("shutting down gRPC server");
+        if let Some(handle) = self.health_sync_handle.take() {
+            handle.abort();
+            let _ = handle.await;
+        }
         if let Some(reporter) = &self.health_reporter {
             set_health_services_not_serving(reporter, &self.health_service_names).await;
         }
+        set_health_status_value(DiscoveryHealthStatus::NotServing.as_gauge_value());
         if let Some(shutdown) = self.shutdown.take() {
             let _ = shutdown.send(());
         }
@@ -670,12 +690,36 @@ where
         Vec::new()
     };
 
+    // Extract the shared health cell before `services` moves into the gRPC
+    // task. The sync task and HTTP readiness probes read from this cell while
+    // the RPC actor updates it after each command.
+    let health_state = if config.enable_health {
+        Some(services.runtime.health_state())
+    } else {
+        None
+    };
+
     let (health_reporter, health_service) = if config.enable_health {
         let (reporter, service) = discovery_health_pair();
         set_health_services_serving(&reporter, health_names).await;
         (Some(reporter), Some(service))
     } else {
         (None, None)
+    };
+
+    // Bridge the resilience-derived health cell into grpc.health.v1 and the
+    // `discovery_health_status` gauge. Coalesces transitions so rapid
+    // resilience changes produce a single reporter update.
+    let health_sync_handle = match (config.enable_health, health_reporter.as_ref()) {
+        (true, Some(reporter)) => Some(spawn_health_sync(
+            health_state
+                .clone()
+                .expect("health state present when enabled"),
+            reporter.clone(),
+            health_service_names.clone(),
+            DEFAULT_HEALTH_SYNC_INTERVAL,
+        )),
+        _ => None,
     };
 
     let bind_addr = config.bind_addr.clone();
@@ -703,6 +747,8 @@ where
         join_handle,
         health_reporter,
         health_service_names,
+        health_sync_handle,
+        health_state,
     })
 }
 

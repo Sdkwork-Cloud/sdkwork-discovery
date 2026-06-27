@@ -16,7 +16,7 @@ Local setup, verification, and contribution workflow for `sdkwork-discovery`.
 ```bash
 cargo test --workspace
 pnpm run verify
-pnpm run discovery:dev
+pnpm run dev
 ```
 
 On Windows, prefer `pnpm.cmd` if PowerShell blocks `pnpm.ps1`.
@@ -76,7 +76,7 @@ Handwritten SDK helpers live beside generated code: `deadline`, `idempotency`, `
 | --- | --- |
 | `pnpm run verify` | Full repository gate (fmt, clippy, tests, topology, package contract, docs) |
 | `cargo test -p sdkwork-discovery-standards` | Module boundaries and production ops artifacts |
-| `pnpm run package:server:validate` | Release archive contract (after `package:server`) |
+| `pnpm run release:validate` | Release archive contract (after `release:package`) |
 | `node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root .` | Documentation canon |
 
 ## Related Specs

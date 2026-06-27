@@ -30,7 +30,7 @@
 ```bash
 pnpm run verify
 pnpm run verify:docs
-pnpm run package:server:validate
+pnpm run release:validate
 node ../sdkwork-specs/tools/check-repository-docs-standard.mjs --root .
 ```
 

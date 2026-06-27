@@ -9,23 +9,14 @@ pub struct RedisConnectionOptions {
     port: u16,
     database: u8,
     username: Option<String>,
-    password: Option<String>,
+    credential_source: StorageCredentialSource,
     tls_enabled: bool,
     connect_timeout_ms: u64,
     max_connections: u32,
 }
 
 impl RedisConnectionOptions {
-    pub fn from_transport(
-        transport: &StorageTransportConfig,
-        password: Option<&str>,
-    ) -> DiscoveryResult<Self> {
-        if let (StorageCredentialSource::None, Some(_)) = (&transport.credential_source, password) {
-            return Err(DiscoveryError::InvalidConfig(
-                "redis password material requires a configured password_file".to_string(),
-            ));
-        }
-
+    pub fn from_transport(transport: &StorageTransportConfig) -> DiscoveryResult<Self> {
         let database = transport
             .database
             .as_deref()
@@ -43,25 +34,57 @@ impl RedisConnectionOptions {
             port: transport.port,
             database,
             username: transport.username.clone(),
-            password: password.map(ToOwned::to_owned),
+            credential_source: transport.credential_source.clone(),
             tls_enabled: transport.tls_enabled,
             connect_timeout_ms: transport.connect_timeout_ms,
             max_connections: transport.max_connections.max(1),
         })
     }
 
-    pub fn redis_url(&self) -> String {
+    fn resolve_password(&self) -> DiscoveryResult<Option<String>> {
+        match &self.credential_source {
+            StorageCredentialSource::None => Ok(None),
+            StorageCredentialSource::PasswordFile(path) => {
+                let path = path.trim();
+                if path.is_empty() {
+                    return Err(DiscoveryError::InvalidConfig(
+                        "storage password_file path must not be empty".to_string(),
+                    ));
+                }
+                let mut password = std::fs::read(path).map_err(|error| {
+                    DiscoveryError::InvalidConfig(format!(
+                        "storage password_file could not be read: {error}"
+                    ))
+                })?;
+                while password.last().is_some_and(u8::is_ascii_whitespace) {
+                    password.pop();
+                }
+                if password.is_empty() {
+                    return Err(DiscoveryError::InvalidConfig(
+                        "storage password_file must not be empty".to_string(),
+                    ));
+                }
+                Ok(Some(String::from_utf8(password).map_err(|error| {
+                    DiscoveryError::InvalidConfig(format!(
+                        "storage password_file must be valid UTF-8: {error}"
+                    ))
+                })?))
+            }
+        }
+    }
+
+    pub fn redis_url(&self) -> DiscoveryResult<String> {
+        let password = self.resolve_password()?;
         let authority = match self.username.as_deref() {
             Some(username) if !username.is_empty() => {
-                let password = self
-                    .password
+                let password = password
                     .as_deref()
                     .filter(|value| !value.is_empty())
                     .map(|value| format!(":{value}"))
                     .unwrap_or_default();
                 format!("{username}{password}@{}:{}", self.host, self.port)
             }
-            _ => match self.password.as_deref() {
+            _ => match password.as_deref() {
                 Some(password) if !password.is_empty() => {
                     format!(":{}@{}:{}", password, self.host, self.port)
                 }
@@ -69,7 +92,7 @@ impl RedisConnectionOptions {
             },
         };
         let scheme = if self.tls_enabled { "rediss" } else { "redis" };
-        format!("{scheme}://{authority}/{db}", db = self.database)
+        Ok(format!("{scheme}://{authority}/{db}", db = self.database))
     }
 
     pub fn safe_summary(&self) -> String {

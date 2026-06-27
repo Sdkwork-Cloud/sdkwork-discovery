@@ -88,5 +88,5 @@ Orchestrators should use SIGTERM and allow enough time for in-flight unary RPCs 
 
 ```bash
 pnpm run verify
-pnpm run package:server:validate
+pnpm run release:validate
 ```

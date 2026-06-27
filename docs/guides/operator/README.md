@@ -19,7 +19,7 @@ Deployment, monitoring, and incident response for SDKWork Discovery.
 
 ```bash
 pnpm run verify
-pnpm run package:server:validate
+pnpm run release:validate
 ```
 
 See `DOCUMENTATION_SPEC.md` section 2.

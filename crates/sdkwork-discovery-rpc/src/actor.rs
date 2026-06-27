@@ -15,6 +15,7 @@ use tokio::time::{Duration, Instant, MissedTickBehavior};
 
 use crate::context::RpcContextPolicy;
 use crate::degradation::OperationType;
+use crate::health::DiscoveryHealthState;
 use crate::health_probes::run_health_checks;
 use crate::resilience::{RuntimeResilience, RuntimeResilienceConfig};
 use crate::service_token::{DiscoveryRpcServiceTokenVerifierConfig, ServiceTokenVerifier};
@@ -53,6 +54,7 @@ pub struct DiscoveryRpcRuntime<S> {
     sender: mpsc::Sender<RuntimeCommand>,
     watch_events: WatchEventPublisher,
     context_policy: RpcContextPolicy,
+    health_state: DiscoveryHealthState,
     _store_marker: std::marker::PhantomData<S>,
 }
 
@@ -62,6 +64,7 @@ impl<S> Clone for DiscoveryRpcRuntime<S> {
             sender: self.sender.clone(),
             watch_events: self.watch_events.clone(),
             context_policy: self.context_policy.clone(),
+            health_state: self.health_state.clone(),
             _store_marker: std::marker::PhantomData,
         }
     }
@@ -175,15 +178,25 @@ where
                 .clone()
                 .map(ServiceTokenVerifier::new),
         };
+        let health_state = DiscoveryHealthState::new();
+        let actor_health_state = health_state.clone();
 
         tokio::spawn(async move {
-            run_actor(&mut control_plane, &publisher, &mut receiver, config).await;
+            run_actor(
+                &mut control_plane,
+                &publisher,
+                &mut receiver,
+                config,
+                actor_health_state,
+            )
+            .await;
         });
 
         Self {
             sender,
             watch_events,
             context_policy,
+            health_state,
             _store_marker: std::marker::PhantomData,
         }
     }
@@ -437,6 +450,12 @@ impl<S> DiscoveryRpcRuntime<S> {
         self.context_policy.clone()
     }
 
+    /// Returns a shared handle to the runtime health state so the gRPC server
+    /// and HTTP readiness probes can observe resilience-derived status.
+    pub fn health_state(&self) -> DiscoveryHealthState {
+        self.health_state.clone()
+    }
+
     async fn send(&self, command: RuntimeCommand) -> DiscoveryResult<()> {
         self.sender.send(command).await.map_err(|_| {
             DiscoveryError::InvalidConfig("discovery rpc runtime is not available".to_string())
@@ -455,6 +474,7 @@ async fn run_actor<S>(
     publisher: &WatchEventPublisher,
     receiver: &mut mpsc::Receiver<RuntimeCommand>,
     config: DiscoveryRpcRuntimeConfig,
+    health_state: DiscoveryHealthState,
 ) where
     S: ConfigStore + RegistryStore + WatchEventStore,
 {
@@ -465,7 +485,14 @@ async fn run_actor<S>(
 
     if !has_expiry_scan && !has_gc && !has_health_scan {
         while let Some(command) = receiver.recv().await {
-            dispatch_command(control_plane, publisher, &mut resilience, command).await;
+            dispatch_command(
+                control_plane,
+                publisher,
+                &mut resilience,
+                &health_state,
+                command,
+            )
+            .await;
         }
         return;
     }
@@ -489,7 +516,14 @@ async fn run_actor<S>(
                 let Some(command) = command else {
                     return;
                 };
-                dispatch_command(control_plane, publisher, &mut resilience, command).await;
+                dispatch_command(
+                    control_plane,
+                    publisher,
+                    &mut resilience,
+                    &health_state,
+                    command,
+                )
+                .await;
             }
             _ = scan_timer.tick(), if has_expiry_scan => {
                 run_expiry_scan(
@@ -517,6 +551,7 @@ async fn dispatch_command<S>(
     control_plane: &mut DiscoveryControlPlane<S>,
     publisher: &WatchEventPublisher,
     resilience: &mut RuntimeResilience,
+    health_state: &DiscoveryHealthState,
     command: RuntimeCommand,
 ) where
     S: ConfigStore + RegistryStore + WatchEventStore,
@@ -533,6 +568,7 @@ async fn dispatch_command<S>(
             let event_scope = (command.namespace.clone(), command.environment.clone());
             let result = control_plane.register_instance(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             if let Ok(ref register_result) = result {
                 TracingComponentChangeEmitter.emit_registry_changed(
                     &event_scope.0,
@@ -560,6 +596,7 @@ async fn dispatch_command<S>(
                 .batch_register_instances(&caller, commands)
                 .await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             if let Ok(ref batch_result) = result {
                 let emitter = TracingComponentChangeEmitter;
                 for (index, register_result) in batch_result.results.iter().enumerate() {
@@ -584,6 +621,7 @@ async fn dispatch_command<S>(
             };
             let result = control_plane.renew_lease(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             publish_revision_events_from_renewal(control_plane.store(), publisher, &result).await;
             let _ = response.send(result);
         }
@@ -610,6 +648,7 @@ async fn dispatch_command<S>(
                 )
                 .await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             publish_revision_events_from_deregister(control_plane.store(), publisher, &result)
                 .await;
             let _ = response.send(result);
@@ -624,6 +663,7 @@ async fn dispatch_command<S>(
             };
             let result = control_plane.expire_instances(now_ms, max_instances).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             publish_revision_events_from_deregisters(control_plane.store(), publisher, &result)
                 .await;
             let _ = response.send(result);
@@ -639,6 +679,7 @@ async fn dispatch_command<S>(
             let event_scope = (command.namespace.clone(), command.environment.clone());
             let result = control_plane.report_instance_status(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             publish_scoped_revision_events(control_plane.store(), publisher, event_scope, &result)
                 .await;
             let _ = response.send(result);
@@ -658,6 +699,7 @@ async fn dispatch_command<S>(
                 .await;
             let result = resilience.resolve_discover_instances(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::RetrieveInstance {
@@ -675,6 +717,7 @@ async fn dispatch_command<S>(
                 .await;
             let result = resilience.resolve_retrieve_instance(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::ListServices {
@@ -690,6 +733,7 @@ async fn dispatch_command<S>(
             let result = control_plane.list_services(&caller, query, now_ms).await;
             let result = resilience.resolve_list_services(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::CreateConfigDraft {
@@ -702,6 +746,7 @@ async fn dispatch_command<S>(
             };
             let result = control_plane.create_config_draft(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::PublishConfig {
@@ -714,6 +759,7 @@ async fn dispatch_command<S>(
             };
             let result = control_plane.publish_config(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             if let Ok(ref release) = result {
                 TracingComponentChangeEmitter.emit_config_changed(
                     &release.namespace,
@@ -735,6 +781,7 @@ async fn dispatch_command<S>(
             };
             let result = control_plane.rollback_config(&caller, command).await;
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             if let Ok(ref release) = result {
                 TracingComponentChangeEmitter.emit_config_changed(
                     &release.namespace,
@@ -760,6 +807,7 @@ async fn dispatch_command<S>(
                 .await;
             let result = resilience.resolve_effective_config(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::WatchRegistryEvents {
@@ -774,6 +822,7 @@ async fn dispatch_command<S>(
             let result = control_plane.watch_registry_events(&caller, query).await;
             let result = resilience.resolve_watch_events(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
         RuntimeCommand::WatchConfigEvents {
@@ -788,6 +837,7 @@ async fn dispatch_command<S>(
             let result = control_plane.watch_config_events(&caller, query).await;
             let result = resilience.resolve_watch_events(cache_key, result);
             resilience.record_result(&result);
+            health_state.sync_from_resilience(resilience);
             let _ = response.send(result);
         }
     }

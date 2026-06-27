@@ -4,7 +4,7 @@ Status: production-ready candidate
 Application: sdkwork-discovery
 Version: 0.1.0
 Runtime target: server
-Deployment profiles: cloud, standalone
+Deployment profile: cloud (server tar.gz)
 Package id: linux-x64-cloud-server-tar-gz (primary); platform-specific tar.gz via `sdkwork.workflow.json`
 Specs: RELEASE_SPEC.md, APP_MANIFEST_SPEC.md, DISCOVERY_SPEC.md
 
@@ -62,7 +62,7 @@ Container image reference (manifest): `registry.sdkwork.com/apps/sdkwork-discove
 | --- | --- |
 | Repository verify | `pnpm run verify` |
 | Standards | `cargo test -p sdkwork-discovery-standards` |
-| Package contract | `pnpm run package:server:validate` |
+| Package contract | `pnpm run release:validate` |
 | Docs canon | `pnpm run verify:docs` |
 | Database framework | `pnpm run test:contract:database` |
 

@@ -297,7 +297,16 @@ pub(crate) fn event_from_row(row: &PgRow) -> DiscoveryResult<DiscoveryEvent> {
 }
 
 pub(crate) fn sqlx_error(error: sqlx::Error) -> DiscoveryError {
-    DiscoveryError::InvalidConfig(format!("postgres storage error: {error}"))
+    // Storage driver errors are runtime failures (connection loss, constraint
+    // violation, pool exhaustion), not configuration defects. Map them to
+    // `Unavailable` so the RPC layer surfaces UNAVAILABLE instead of
+    // FAILED_PRECONDITION. The driver's Display text is preserved in the
+    // `DiscoveryError` message so server-side `warn!` logging captures it for
+    // operators, but the RPC layer's `sanitize_external_message` replaces it
+    // with a fixed "service unavailable" string before returning to the gRPC
+    // caller, preventing SQL text / table names / connection URLs / filesystem
+    // paths from leaking to untrusted clients.
+    DiscoveryError::Unavailable(format!("postgres storage error: {error}"))
 }
 
 pub(crate) fn bind_weight(value: u32) -> DiscoveryResult<i32> {

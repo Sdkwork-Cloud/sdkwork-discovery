@@ -283,6 +283,54 @@ async fn registry_service_rejects_unsigned_context_headers_with_verified_service
     assert!(status.message().contains("unsigned context metadata"));
 }
 
+/// A service-token without a `tenant_id` claim MUST be rejected before it can
+/// reach the namespace access check. Without this gate, a token without
+/// tenant_id bypasses `require_namespace_tenant_access` (which returns Ok when
+/// `caller.tenant_id` is None), allowing cross-tenant namespace access.
+#[tokio::test]
+async fn registry_service_rejects_service_token_without_tenant_id_claim() {
+    let service = RegistryRpcService::new(runtime_with_service_token_verifier());
+    let mut request = Request::new(register_request());
+    request.metadata_mut().insert(
+        "authorization",
+        format!("Bearer {SERVICE_TOKEN_WITHOUT_TENANT_ID}")
+            .parse()
+            .unwrap(),
+    );
+    request
+        .metadata_mut()
+        .insert("access-token", VERIFIED_ACCESS_TOKEN.parse().unwrap());
+
+    let status = service.register_instance(request).await.unwrap_err();
+
+    assert_eq!(status.code(), Code::Unauthenticated);
+    assert!(status.message().contains("tenant_id"));
+}
+
+/// A service-token whose `tenant_id` does not match the target namespace MUST
+/// be rejected by `require_namespace_tenant_access`. This blocks a caller from
+/// using a token issued for tenant A to access resources in tenant B's
+/// namespace.
+#[tokio::test]
+async fn registry_service_rejects_service_token_with_mismatched_tenant_id() {
+    let service = RegistryRpcService::new(runtime_with_service_token_verifier());
+    let mut request = Request::new(register_request());
+    request.metadata_mut().insert(
+        "authorization",
+        format!("Bearer {SERVICE_TOKEN_OTHER_TENANT_ID}")
+            .parse()
+            .unwrap(),
+    );
+    request
+        .metadata_mut()
+        .insert("access-token", VERIFIED_ACCESS_TOKEN.parse().unwrap());
+
+    let status = service.register_instance(request).await.unwrap_err();
+
+    assert_eq!(status.code(), Code::PermissionDenied);
+    assert!(status.message().contains("namespace"));
+}
+
 #[tokio::test]
 async fn admin_write_rejects_missing_required_idempotency_metadata_before_permissions() {
     let service = DiscoveryAdminRpcService::new(runtime());
@@ -2001,7 +2049,17 @@ fn add_config_rollback_metadata<T>(
 
 const SERVICE_TOKEN_SECRET: &[u8] = b"0123456789abcdef0123456789abcdef";
 const VERIFIED_ACCESS_TOKEN: &str = "verified-access-token";
-const VERIFIED_SERVICE_TOKEN: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsImlhdF9tcyI6MTcwMDAwMDAwMDAwMCwiZXhwX21zIjo0MTAyNDQ0ODAwMDAwLCJhY2Nlc3NfdG9rZW5fc2hhMjU2IjoiYjE2MWJlYjI5NjM5NjI1MmJmZDZlNzc1NmQyODdlNjY3OTkxMzdmMDIyMTljOGRlODNlODIxMzgyNzFiOWQyNyIsInJlZ2lzdHJ5X3Blcm1pc3Npb25zIjpbInJlYWQiLCJ3cml0ZSJdLCJjb25maWdfcGVybWlzc2lvbnMiOlsicmVhZCIsInB1Ymxpc2giXX0.NoJu0JcYJxTCP----H4bCIOAho-nybRC6X0pg6Z74fs";
+const VERIFIED_SERVICE_TOKEN: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsInRlbmFudF9pZCI6InNka3dvcmsiLCJpYXRfbXMiOjE3MDAwMDAwMDAwMDAsImV4cF9tcyI6NDEwMjQ0NDgwMDAwMCwiYWNjZXNzX3Rva2VuX3NoYTI1NiI6ImIxNjFiZWIyOTYzOTYyNTJiZmQ2ZTc3NTZkMjg3ZTY2Nzk5MTM3ZjAyMjE5YzhkZTgzZTgyMTM4MjcxYjlkMjciLCJyZWdpc3RyeV9wZXJtaXNzaW9ucyI6WyJyZWFkIiwid3JpdGUiXSwiY29uZmlnX3Blcm1pc3Npb25zIjpbInJlYWQiLCJwdWJsaXNoIl19.yTqskA6sBzRoF2BqYFgX2Qn2PIYyQqLSuNXX5G1kpNs";
+
+/// A validly-signed service token without a `tenant_id` claim. Used to verify
+/// the verifier rejects tokens that would otherwise bypass namespace tenant
+/// access checks.
+const SERVICE_TOKEN_WITHOUT_TENANT_ID: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsImlhdF9tcyI6MTcwMDAwMDAwMDAwMCwiZXhwX21zIjo0MTAyNDQ0ODAwMDAwLCJhY2Nlc3NfdG9rZW5fc2hhMjU2IjoiYjE2MWJlYjI5NjM5NjI1MmJmZDZlNzc1NmQyODdlNjY3OTkxMzdmMDIyMTljOGRlODNlODIxMzgyNzFiOWQyNyIsInJlZ2lzdHJ5X3Blcm1pc3Npb25zIjpbInJlYWQiLCJ3cml0ZSJdLCJjb25maWdfcGVybWlzc2lvbnMiOlsicmVhZCIsInB1Ymxpc2giXX0.NoJu0JcYJxTCP----H4bCIOAho-nybRC6X0pg6Z74fs";
+
+/// A validly-signed service token with `tenant_id = "other-tenant"`. Used to
+/// verify the namespace tenant access check rejects cross-tenant access when
+/// the request targets the `sdkwork` namespace.
+const SERVICE_TOKEN_OTHER_TENANT_ID: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsInRlbmFudF9pZCI6Im90aGVyLXRlbmFudCIsImlhdF9tcyI6MTcwMDAwMDAwMDAwMCwiZXhwX21zIjo0MTAyNDQ0ODAwMDAwLCJhY2Nlc3NfdG9rZW5fc2hhMjU2IjoiYjE2MWJlYjI5NjM5NjI1MmJmZDZlNzc1NmQyODdlNjY3OTkxMzdmMDIyMTljOGRlODNlODIxMzgyNzFiOWQyNyIsInJlZ2lzdHJ5X3Blcm1pc3Npb25zIjpbInJlYWQiLCJ3cml0ZSJdLCJjb25maWdfcGVybWlzc2lvbnMiOlsicmVhZCIsInB1Ymxpc2giXX0.Mnk7TkLds6Q22ELF8gxX6ByUDZ1MwziPHd_hRgolB0g";
 
 fn add_verified_service_token_metadata<T>(request: &mut Request<T>) {
     request.metadata_mut().insert(

@@ -945,15 +945,15 @@ where
                 map_guard_rpc_err(&mut metrics, e, map_rpc_err)
             })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace)
+        codec::validate_identity_field("namespace", &request.namespace)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("environment", &request.environment)
+        codec::validate_identity_field("environment", &request.environment)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("application", &request.application)
+        codec::validate_identity_field("application", &request.application)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("service_name", &request.service_name)
+        codec::validate_identity_field("service_name", &request.service_name)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("group", &request.group)
+        codec::validate_identity_field("group", &request.group)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let permit = self.acquire_stream_permit().inspect_err(|_status| {
             metrics.record_error("RESOURCE_EXHAUSTED", "watch_stream_limit");
@@ -1460,11 +1460,11 @@ where
                     map_guard_rpc_err(&mut metrics, e, map_rpc_err)
                 })?;
         let request = request.into_inner();
-        codec::validate_required_field("namespace", &request.namespace)
+        codec::validate_identity_field("namespace", &request.namespace)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("environment", &request.environment)
+        codec::validate_identity_field("environment", &request.environment)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
-        codec::validate_required_field("service_name", &request.service_name)
+        codec::validate_identity_field("service_name", &request.service_name)
             .map_err(|error| map_guard_rpc_err(&mut metrics, error, map_rpc_err))?;
         let permit = self.acquire_stream_permit().inspect_err(|_status| {
             metrics.record_error("RESOURCE_EXHAUSTED", "watch_stream_limit");

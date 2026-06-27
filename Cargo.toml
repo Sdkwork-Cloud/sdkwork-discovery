@@ -23,6 +23,7 @@ version = "0.1.0"
 
 [workspace.dependencies]
 async-trait = "0.1"
+axum = { version = "0.8" }
 base64 = "0.22"
 hmac = "0.12"
 serde = { version = "1.0", features = ["derive"] }
@@ -44,6 +45,7 @@ protoc-bin-vendored = "3.2.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = "0.24"
+metrics-exporter-prometheus = "0.16"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 uuid = { version = "1.18", features = ["v7"] }
 redis = { version = "0.27", features = ["tokio-comp"] }
@@ -68,3 +70,4 @@ sdkwork_database_config = { path = "../sdkwork-database/crates/sdkwork-database-
 sdkwork_database_lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
 sdkwork_database_spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }
 sdkwork_database_sqlx = { path = "../sdkwork-database/crates/sdkwork-database-sqlx", package = "sdkwork-database-sqlx" }
+sdkwork-web-bootstrap = { path = "../sdkwork-web-framework/crates/sdkwork-web-bootstrap", package = "sdkwork-web-bootstrap" }

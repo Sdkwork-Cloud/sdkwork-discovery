@@ -26,4 +26,5 @@ uuid.workspace = true
 
 [dev-dependencies]
 async-trait.workspace = true
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 sdkwork-discovery-storage-memory.workspace = true

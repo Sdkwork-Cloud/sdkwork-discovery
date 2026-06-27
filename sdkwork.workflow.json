@@ -54,7 +54,7 @@
       {
         "name": "Package discovery server archive",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm run package:server"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm run release:package"
       }
     ],
     "sign": [
@@ -75,7 +75,7 @@
       {
         "name": "Validate discovery server archive",
         "shell": "pwsh",
-        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm run package:server:validate"
+        "run": "$ErrorActionPreference = \"Stop\"\n$PSNativeCommandUseErrorActionPreference = $true\npnpm run release:validate"
       }
     ]
   },

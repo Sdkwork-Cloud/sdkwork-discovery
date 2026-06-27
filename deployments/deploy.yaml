@@ -1,0 +1,9 @@
+version: 1
+profile: cloud.unified-process.production
+
+install:
+  layout: binary-package
+
+expose: []
+packages: []
+overrides: {}

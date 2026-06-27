@@ -19,7 +19,7 @@ fn transport() -> StorageTransportConfig {
 
 #[test]
 fn connection_options_are_derived_from_structured_transport_config() {
-    let options = PostgresConnectionOptions::from_transport(&transport(), Some("s3cret")).unwrap();
+    let options = PostgresConnectionOptions::from_transport(&transport()).unwrap();
 
     assert_eq!(options.host(), "postgres.internal");
     assert_eq!(options.port(), 5432);
@@ -36,21 +36,33 @@ fn connection_options_are_derived_from_structured_transport_config() {
 
 #[test]
 fn connection_options_apply_configured_schema_as_search_path() {
-    let options = PostgresConnectionOptions::from_transport(&transport(), None).unwrap();
+    let mut transport = transport();
+    transport.credential_source = StorageCredentialSource::None;
+    let options = PostgresConnectionOptions::from_transport(&transport).unwrap();
 
     assert_eq!(
-        options.to_sqlx_connect_options().get_options(),
+        options.to_sqlx_connect_options().unwrap().get_options(),
         Some("-c search_path=sdkwork_discovery_runtime")
     );
 }
 
 #[test]
 fn connection_options_never_expose_password_material() {
-    let options = PostgresConnectionOptions::from_transport(&transport(), Some("s3cret")).unwrap();
+    let password_path = std::env::temp_dir().join(format!(
+        "sdkwork-discovery-options-contract-{}",
+        std::process::id()
+    ));
+    std::fs::write(&password_path, "s3cret").expect("write password file");
+    let mut transport = transport();
+    transport.credential_source =
+        StorageCredentialSource::PasswordFile(password_path.to_string_lossy().into_owned());
+    let options = PostgresConnectionOptions::from_transport(&transport).unwrap();
 
     assert!(!options.connection_uri().contains("s3cret"));
     assert!(!options.safe_summary().contains("s3cret"));
     assert!(!format!("{options:?}").contains("s3cret"));
+
+    let _ = std::fs::remove_file(&password_path);
 }
 
 #[test]
@@ -58,22 +70,10 @@ fn connection_options_support_passwordless_local_development() {
     let mut transport = transport();
     transport.credential_source = StorageCredentialSource::None;
 
-    let options = PostgresConnectionOptions::from_transport(&transport, None).unwrap();
+    let options = PostgresConnectionOptions::from_transport(&transport).unwrap();
 
     assert!(options
         .connection_uri()
         .starts_with("postgres://sdkwork_discovery@"));
     assert!(!options.connection_uri().contains("password"));
-}
-
-#[test]
-fn connection_options_reject_password_for_passwordless_transport() {
-    let mut transport = transport();
-    transport.credential_source = StorageCredentialSource::None;
-
-    let error =
-        PostgresConnectionOptions::from_transport(&transport, Some("unexpected")).unwrap_err();
-
-    assert!(error.to_string().contains("password"));
-    assert!(error.to_string().contains("password_file"));
 }

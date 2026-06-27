@@ -296,7 +296,11 @@ pub(crate) fn event_from_row(row: &SqliteRow) -> DiscoveryResult<DiscoveryEvent>
 }
 
 pub(crate) fn sqlx_error(error: sqlx::Error) -> DiscoveryError {
-    DiscoveryError::InvalidConfig(format!("sqlite storage error: {error}"))
+    // See postgres codec for rationale: storage driver errors are runtime
+    // failures, not configuration defects. Map to `Unavailable` so callers
+    // receive UNAVAILABLE (not FAILED_PRECONDITION) and a fixed sanitized
+    // message; the original driver message stays in server logs only.
+    DiscoveryError::Unavailable(format!("sqlite storage error: {error}"))
 }
 
 pub(crate) fn bind_weight(value: u32) -> DiscoveryResult<i64> {

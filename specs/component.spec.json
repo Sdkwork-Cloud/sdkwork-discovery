@@ -154,7 +154,6 @@
     ],
     "configKeys": [
       "SDKWORK_DISCOVERY_CONFIG_FILE",
-      "SDKWORK_DISCOVERY_HOSTING",
       "SDKWORK_DISCOVERY_SERVICE_LAYOUT",
       "SDKWORK_DISCOVERY_PROFILE_ID",
       "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND",
@@ -163,7 +162,6 @@
       "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL",
       "SDKWORK_DISCOVERY_ENVIRONMENT",
       "SDKWORK_DISCOVERY_CONFIG_PROFILE",
-      "SDKWORK_DISCOVERY_DEPLOYMENT_MODE",
       "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE",
       "SDKWORK_DISCOVERY_RUNTIME_TARGET",
       "SDKWORK_DISCOVERY_STORAGE_PROVIDER",
@@ -277,7 +275,7 @@
       "pnpm.cmd verify",
       "pnpm.cmd run verify:sdk-rust",
       "pnpm.cmd run verify:sdk-typescript",
-      "pnpm.cmd run package:server:validate",
+      "pnpm.cmd run release:validate",
       "cargo clippy --workspace --all-targets -- -D warnings"
     ]
   },

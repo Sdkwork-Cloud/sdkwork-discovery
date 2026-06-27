@@ -153,9 +153,10 @@ fn production_ops_artifacts_are_present() {
         .join("docs/runbooks/RUNBOOK-database-migration-rollback.md")
         .exists());
 
-    let prd = fs::read_to_string(workspace_root.join("docs/product/PRD.md")).unwrap();
+    let prd = fs::read_to_string(workspace_root.join("docs/product/prd/PRD.md")).unwrap();
     let tech_arch =
-        fs::read_to_string(workspace_root.join("docs/architecture/TECH_ARCHITECTURE.md")).unwrap();
+        fs::read_to_string(workspace_root.join("docs/architecture/tech/TECH_ARCHITECTURE.md"))
+            .unwrap();
     assert!(prd.contains("Service Registry"));
     assert!(prd.contains("Config Registry"));
     assert!(tech_arch.contains("sdkwork-discovery-rpc-sdk"));
@@ -304,12 +305,11 @@ fn assert_module_boundary_only(
     violations: &mut Vec<String>,
 ) {
     for (line_number, raw_line) in source.lines().enumerate() {
-        let line = raw_line.trim();
-
-        if is_allowed_lib_line(line) {
+        if is_allowed_lib_line(raw_line) {
             continue;
         }
 
+        let line = raw_line.trim();
         let relative_path = lib_rs_path
             .strip_prefix(workspace_root)
             .unwrap_or(lib_rs_path)
@@ -318,7 +318,8 @@ fn assert_module_boundary_only(
     }
 }
 
-fn is_allowed_lib_line(line: &str) -> bool {
+fn is_allowed_lib_line(raw_line: &str) -> bool {
+    let line = raw_line.trim();
     line.is_empty()
         || line.starts_with("//!")
         || line.starts_with("#![")
@@ -330,8 +331,9 @@ fn is_allowed_lib_line(line: &str) -> bool {
         || line == "}"
         || line == "};"
         || (line.starts_with("//") && !line.starts_with("///"))
-        // Allow continuation lines (indented content that's part of multi-line statements)
-        || (line.starts_with("    ") && !line.contains("fn ") && !line.contains("struct ") && !line.contains("impl "))
+        // Allow continuation lines (indented content that's part of multi-line statements).
+        // `raw_line` is used here because `line` is trimmed and would never start with whitespace.
+        || (raw_line.starts_with("    ") && !line.contains("fn ") && !line.contains("struct ") && !line.contains("impl "))
 }
 
 fn forbidden_rpc_dependency_violations(manifest_toml: &str) -> Vec<String> {

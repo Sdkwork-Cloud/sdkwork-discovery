@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 
 use sdkwork_discovery_contract::{
-    DiscoveryError, DiscoveryResult, RuntimeDeploymentMode, RuntimeDeploymentProfile,
-    RuntimeEnvironment, RuntimeTarget,
+    DiscoveryError, DiscoveryResult, RuntimeDeploymentProfile, RuntimeEnvironment, RuntimeTarget,
 };
 
 use crate::model::{
@@ -38,9 +37,7 @@ pub(crate) fn apply_env_overlay(
     for (key, value) in env {
         match key.as_str() {
             "SDKWORK_DISCOVERY_ENVIRONMENT" | "SDKWORK_DISCOVERY_CONFIG_PROFILE" => {}
-            "SDKWORK_DISCOVERY_HOSTING"
-            | "SDKWORK_DISCOVERY_SERVICE_LAYOUT"
-            | "SDKWORK_DISCOVERY_PROFILE_ID" => {}
+            "SDKWORK_DISCOVERY_SERVICE_LAYOUT" | "SDKWORK_DISCOVERY_PROFILE_ID" => {}
             "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL"
             | "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL" => {}
             "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND" => {
@@ -48,12 +45,6 @@ pub(crate) fn apply_env_overlay(
             }
             "SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND" => {
                 apply_operations_control_bind(config, value)?;
-            }
-            "SDKWORK_DISCOVERY_DEPLOYMENT_MODE" => {
-                config.runtime.deployment_mode =
-                    RuntimeDeploymentMode::parse(value).ok_or_else(|| {
-                        DiscoveryError::InvalidConfig(format!("unknown deployment mode: {value}"))
-                    })?;
             }
             "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE" => {
                 config.runtime.deployment_profile = RuntimeDeploymentProfile::parse(value)
@@ -409,12 +400,6 @@ fn apply_runtime_identity_overlay(
     config.runtime.environment = effective_environment;
     if let Some(profile) = env.get("SDKWORK_DISCOVERY_CONFIG_PROFILE") {
         config.runtime.config_profile = Some(profile.clone());
-    }
-    if let Some(hosting) = env.get("SDKWORK_DISCOVERY_HOSTING") {
-        config.runtime.deployment_profile =
-            RuntimeDeploymentProfile::parse(hosting).ok_or_else(|| {
-                DiscoveryError::InvalidConfig(format!("unknown hosting profile: {hosting}"))
-            })?;
     }
     if let Some(profile) = env.get("SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE") {
         config.runtime.deployment_profile =

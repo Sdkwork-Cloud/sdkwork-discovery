@@ -12,23 +12,14 @@ pub struct PostgresConnectionOptions {
     database: String,
     schema: Option<String>,
     username: Option<String>,
-    password: Option<String>,
+    credential_source: StorageCredentialSource,
     tls_enabled: bool,
     connect_timeout_ms: u64,
     max_connections: u32,
 }
 
 impl PostgresConnectionOptions {
-    pub fn from_transport(
-        transport: &StorageTransportConfig,
-        password: Option<&str>,
-    ) -> DiscoveryResult<Self> {
-        if let (StorageCredentialSource::None, Some(_)) = (&transport.credential_source, password) {
-            return Err(DiscoveryError::InvalidConfig(
-                "postgres password material requires a configured password_file".to_string(),
-            ));
-        }
-
+    pub fn from_transport(transport: &StorageTransportConfig) -> DiscoveryResult<Self> {
         let database = transport
             .database
             .as_deref()
@@ -50,11 +41,43 @@ impl PostgresConnectionOptions {
             database: database.to_string(),
             schema: transport.schema.clone(),
             username: transport.username.clone(),
-            password: password.map(ToOwned::to_owned),
+            credential_source: transport.credential_source.clone(),
             tls_enabled: transport.tls_enabled,
             connect_timeout_ms: transport.connect_timeout_ms,
             max_connections: transport.max_connections,
         })
+    }
+
+    fn resolve_password(&self) -> DiscoveryResult<Option<String>> {
+        match &self.credential_source {
+            StorageCredentialSource::None => Ok(None),
+            StorageCredentialSource::PasswordFile(path) => {
+                let path = path.trim();
+                if path.is_empty() {
+                    return Err(DiscoveryError::InvalidConfig(
+                        "storage password_file path must not be empty".to_string(),
+                    ));
+                }
+                let mut password = std::fs::read(path).map_err(|error| {
+                    DiscoveryError::InvalidConfig(format!(
+                        "storage password_file could not be read: {error}"
+                    ))
+                })?;
+                while password.last().is_some_and(u8::is_ascii_whitespace) {
+                    password.pop();
+                }
+                if password.is_empty() {
+                    return Err(DiscoveryError::InvalidConfig(
+                        "storage password_file must not be empty".to_string(),
+                    ));
+                }
+                Ok(Some(String::from_utf8(password).map_err(|error| {
+                    DiscoveryError::InvalidConfig(format!(
+                        "storage password_file must be valid UTF-8: {error}"
+                    ))
+                })?))
+            }
+        }
     }
 
     pub fn host(&self) -> &str {
@@ -89,11 +112,11 @@ impl PostgresConnectionOptions {
         self.tls_enabled
     }
 
-    pub fn database_url(&self) -> String {
+    pub fn database_url(&self) -> DiscoveryResult<String> {
+        let password = self.resolve_password()?;
         let authority = match self.username.as_deref() {
             Some(username) if !username.is_empty() => {
-                let password = self
-                    .password
+                let password = password
                     .as_deref()
                     .filter(|value| !value.is_empty())
                     .map(|value| format!(":{value}"))
@@ -107,10 +130,10 @@ impl PostgresConnectionOptions {
         } else {
             "disable"
         };
-        format!(
+        Ok(format!(
             "postgres://{authority}/{database}?sslmode={ssl_mode}",
             database = self.database
-        )
+        ))
     }
 
     pub fn connection_uri(&self) -> String {
@@ -144,7 +167,7 @@ impl PostgresConnectionOptions {
         )
     }
 
-    pub fn to_sqlx_connect_options(&self) -> PgConnectOptions {
+    pub fn to_sqlx_connect_options(&self) -> DiscoveryResult<PgConnectOptions> {
         let mut options = PgConnectOptions::new()
             .host(&self.host)
             .port(self.port)
@@ -159,7 +182,7 @@ impl PostgresConnectionOptions {
             options = options.username(username);
         }
 
-        if let Some(password) = self.password.as_deref() {
+        if let Some(password) = self.resolve_password()?.as_deref() {
             options = options.password(password);
         }
 
@@ -167,7 +190,7 @@ impl PostgresConnectionOptions {
             options = options.options([("search_path", schema)]);
         }
 
-        options
+        Ok(options)
     }
 
     pub fn acquire_timeout(&self) -> Duration {
@@ -184,7 +207,7 @@ impl Debug for PostgresConnectionOptions {
             .field("database", &self.database)
             .field("schema", &self.schema)
             .field("username", &self.username)
-            .field("password", &self.password.as_ref().map(|_| "<redacted>"))
+            .field("credential_source", &self.credential_source)
             .field("tls_enabled", &self.tls_enabled)
             .field("connect_timeout_ms", &self.connect_timeout_ms)
             .field("max_connections", &self.max_connections)

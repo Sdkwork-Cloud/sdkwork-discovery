@@ -40,32 +40,27 @@
     "family": "server",
     "framework": "rust-tonic",
     "runtimes": [
-      "SERVER",
-      "CONTAINER"
+      "SERVER"
     ],
     "deliveryModes": [
-      "CONTAINER_IMAGE",
       "DIRECT_DOWNLOAD"
     ],
     "defaultPlatform": "SERVER",
     "defaultArchitecture": "x64",
     "supportedDeploymentProfiles": [
-      "cloud",
-      "standalone"
+      "cloud"
     ],
     "defaultDeploymentProfile": "cloud"
   },
   "publish": {
     "status": "DRAFT",
     "platforms": [
-      "SERVER",
-      "CONTAINER"
+      "SERVER"
     ],
     "installPlatforms": [
-      "SERVER",
-      "CONTAINER"
+      "SERVER"
     ],
-    "defaultPackageId": "linux-x64-server-tar-gz",
+    "defaultPackageId": "linux-x64-cloud-server-tar-gz",
     "storeUrl": "https://sdkwork.com/apps/sdkwork-discovery",
     "stores": [],
     "config": {

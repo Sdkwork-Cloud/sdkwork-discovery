@@ -44,7 +44,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and alig
 
 ```bash
 pnpm run verify
-pnpm run package:server:validate
+pnpm run release:validate
 ```
 
 Release evidence: [RELEASE-v0.1.0.md](../releases/RELEASE-v0.1.0.md)

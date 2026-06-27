@@ -97,7 +97,7 @@
       "binary": "sdkwork-discovery-service-host"
     },
     "cloudGateway": {
-      "crate": "sdkwork-api-cloud-gateway-api-server",
+      "crate": "sdkwork-api-cloud-gateway",
       "binary": "sdkwork-api-cloud-gateway",
       "repository": "sdkwork-api-cloud-gateway",
       "configGlob": "configs/sdkwork-api-cloud-gateway.discovery.{profile}.toml"
@@ -159,11 +159,20 @@
       }
     }
   },
+  "runtime": {
+    "supportedDeploymentProfiles": [
+      "cloud"
+    ],
+    "deliveryModes": [
+      "DIRECT_DOWNLOAD"
+    ],
+    "runtimeTarget": "server"
+  },
   "packaging": {
     "targets": [
       {
-        "id": "linux-x64-server-tar-gz",
-        "profile": "application-public-ingress",
+        "id": "linux-x64-cloud-server-tar-gz",
+        "profile": "server",
         "platform": "linux",
         "architecture": "x64",
         "formats": [
@@ -182,14 +191,14 @@
   "scripts": {
     "discoveryDev": "scripts/discovery-dev.mjs",
     "pnpm": {
-      "discovery:dev": {
-        "script": "discovery:dev",
+      "dev": {
+        "script": "dev",
         "deploymentProfile": "standalone",
         "serviceLayout": "unified-process",
         "target": "server"
       },
-      "discovery:dev:cloud": {
-        "script": "discovery:dev:cloud",
+      "dev:cloud": {
+        "script": "dev:cloud",
         "deploymentProfile": "cloud",
         "serviceLayout": "unified-process",
         "target": "server"
@@ -210,7 +219,8 @@
       "SDKWORK_DISCOVERY_GRPC_BIND_HOST",
       "SDKWORK_DISCOVERY_GRPC_PORT",
       "SDKWORK_DISCOVERY_ADMIN_GRPC_PORT",
-      "SDKWORK_DISCOVERY_HOSTING"
+      "SDKWORK_DISCOVERY_HOSTING",
+      "SDKWORK_DISCOVERY_DEPLOYMENT_MODE"
     ],
     "notes": "Legacy grpc bind env keys were removed; use application.public-ingress and operations.control-ingress surface bind keys.",
     "vocabulary": {

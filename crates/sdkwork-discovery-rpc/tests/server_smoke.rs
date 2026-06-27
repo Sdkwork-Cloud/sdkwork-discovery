@@ -29,6 +29,23 @@ use tokio::time::{timeout, Duration};
 use tonic::transport::Endpoint;
 use tonic::Request;
 
+/// Installs the rustls `ring` CryptoProvider exactly once for the test binary.
+///
+/// The SDKWork workspace unifies tonic's `tls-ring` feature together with
+/// `sdkwork-web-bootstrap`'s `aws-lc-rs` dependency chain. rustls therefore
+/// cannot auto-detect a single process-level CryptoProvider. Any test that
+/// constructs a TLS-enabled tonic server must call this helper first so rustls
+/// resolves the `ring` provider chosen by the discovery RPC feature set.
+fn ensure_ring_crypto_provider() {
+    use std::sync::OnceLock;
+    static INSTALL: OnceLock<()> = OnceLock::new();
+    INSTALL.get_or_init(|| {
+        // install_default returns Err only if a provider is already installed;
+        // that is harmless for subsequent callers in the same test binary.
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    });
+}
+
 #[tokio::test]
 async fn generated_client_can_call_registry_service_on_local_server() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -219,6 +236,7 @@ async fn generated_clients_can_publish_and_retrieve_effective_config_on_local_se
 
 #[tokio::test]
 async fn server_rejects_tls_required_without_server_identity_before_spawning() {
+    ensure_ring_crypto_provider();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let runtime = runtime();
@@ -258,6 +276,7 @@ async fn server_rejects_tls_required_without_server_identity_before_spawning() {
 
 #[tokio::test]
 async fn server_rejects_invalid_tls_identity_before_spawning() {
+    ensure_ring_crypto_provider();
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let runtime = runtime();

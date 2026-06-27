@@ -34,7 +34,11 @@ fn parse_env_example(input: &str) -> BTreeMap<String, String> {
             }
 
             let (key, value) = line.split_once('=')?;
-            Some((key.trim().to_string(), value.trim().to_string()))
+            let key = key.trim();
+            if !key.starts_with("SDKWORK_DISCOVERY_") {
+                return None;
+            }
+            Some((key.to_string(), value.trim().to_string()))
         })
         .collect()
 }
@@ -1109,7 +1113,7 @@ fn add_config_write_metadata<T>(
 
 const SERVICE_TOKEN_SECRET: &[u8] = b"0123456789abcdef0123456789abcdef";
 const VERIFIED_ACCESS_TOKEN: &str = "verified-access-token";
-const VERIFIED_SERVICE_TOKEN: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsImlhdF9tcyI6MTcwMDAwMDAwMDAwMCwiZXhwX21zIjo0MTAyNDQ0ODAwMDAwLCJhY2Nlc3NfdG9rZW5fc2hhMjU2IjoiYjE2MWJlYjI5NjM5NjI1MmJmZDZlNzc1NmQyODdlNjY3OTkxMzdmMDIyMTljOGRlODNlODIxMzgyNzFiOWQyNyIsInJlZ2lzdHJ5X3Blcm1pc3Npb25zIjpbInJlYWQiLCJ3cml0ZSJdLCJjb25maWdfcGVybWlzc2lvbnMiOlsicmVhZCIsInB1Ymxpc2giXX0.NoJu0JcYJxTCP----H4bCIOAho-nybRC6X0pg6Z74fs";
+const VERIFIED_SERVICE_TOKEN: &str = "sdkwork-discovery-v1.eyJhbGciOiJIUzI1NiIsInR5cCI6InNka3dvcmsuZGlzY292ZXJ5LnNlcnZpY2UtdG9rZW4udjEifQ.eyJpc3MiOiJzZGt3b3JrLWRpc2NvdmVyeSIsImF1ZCI6InNka3dvcmstZGlzY292ZXJ5LXJwYyIsInN1YiI6InNlcnZpY2UtMSIsInRlbmFudF9pZCI6InNka3dvcmsiLCJpYXRfbXMiOjE3MDAwMDAwMDAwMDAsImV4cF9tcyI6NDEwMjQ0NDgwMDAwMCwiYWNjZXNzX3Rva2VuX3NoYTI1NiI6ImIxNjFiZWIyOTYzOTYyNTJiZmQ2ZTc3NTZkMjg3ZTY2Nzk5MTM3ZjAyMjE5YzhkZTgzZTgyMTM4MjcxYjlkMjciLCJyZWdpc3RyeV9wZXJtaXNzaW9ucyI6WyJyZWFkIiwid3JpdGUiXSwiY29uZmlnX3Blcm1pc3Npb25zIjpbInJlYWQiLCJwdWJsaXNoIl19.yTqskA6sBzRoF2BqYFgX2Qn2PIYyQqLSuNXX5G1kpNs";
 
 fn add_verified_service_token_metadata<T>(request: &mut Request<T>) {
     request.metadata_mut().insert(

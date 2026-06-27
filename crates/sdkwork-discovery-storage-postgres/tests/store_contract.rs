@@ -23,7 +23,7 @@ fn transport() -> StorageTransportConfig {
 
 #[test]
 fn lazy_store_can_be_constructed_without_opening_network_connection() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_eq!(
         store.safe_summary(),
@@ -33,7 +33,7 @@ fn lazy_store_can_be_constructed_without_opening_network_connection() {
 
 #[test]
 fn store_exposes_initial_schema_for_deployment_bootstrap() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert!(store
         .initial_schema_sql()
@@ -42,7 +42,7 @@ fn store_exposes_initial_schema_for_deployment_bootstrap() {
 
 #[tokio::test]
 async fn postgres_discover_instances_rejects_blank_required_filters_before_querying() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -108,7 +108,7 @@ async fn postgres_discover_instances_rejects_blank_required_filters_before_query
 
 #[tokio::test]
 async fn postgres_retrieve_instance_rejects_blank_identity_fields_before_querying() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     for (field, query) in [
         (
@@ -157,7 +157,7 @@ async fn postgres_retrieve_instance_rejects_blank_identity_fields_before_queryin
 
 #[tokio::test]
 async fn postgres_register_instance_rejects_blank_required_metadata_fields_before_querying() {
-    let mut store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let mut store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -213,7 +213,7 @@ async fn postgres_register_instance_rejects_blank_required_metadata_fields_befor
 
 #[tokio::test]
 async fn postgres_discover_instances_rejects_blank_optional_protocol_filter_before_querying() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -239,7 +239,7 @@ async fn postgres_discover_instances_rejects_blank_optional_protocol_filter_befo
 
 #[tokio::test]
 async fn postgres_watch_events_rejects_blank_required_and_optional_filters_before_querying() {
-    let store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -320,7 +320,7 @@ async fn postgres_watch_events_rejects_blank_required_and_optional_filters_befor
 
 #[tokio::test]
 async fn postgres_create_config_draft_rejects_blank_audit_and_scope_fields_before_querying() {
-    let mut store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let mut store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -386,7 +386,7 @@ async fn postgres_create_config_draft_rejects_blank_audit_and_scope_fields_befor
 
 #[tokio::test]
 async fn postgres_publish_config_rejects_blank_required_fields_before_querying() {
-    let mut store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let mut store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     assert_invalid_argument_contains(
         store
@@ -416,7 +416,7 @@ async fn postgres_publish_config_rejects_blank_required_fields_before_querying()
 
 #[tokio::test]
 async fn postgres_config_writes_reject_blank_idempotency_fields_before_querying() {
-    let mut store = PostgresDiscoveryStore::new_lazy(&transport(), None).unwrap();
+    let mut store = PostgresDiscoveryStore::new_lazy(&transport()).unwrap();
 
     for (field, idempotency) in invalid_idempotency_cases() {
         assert_invalid_argument_contains(

@@ -21,6 +21,9 @@ pub struct RuntimeConfig {
     pub environment: RuntimeEnvironment,
     pub config_profile: Option<String>,
     pub deployment_profile: RuntimeDeploymentProfile,
+    /// Retired env key `SDKWORK_DISCOVERY_DEPLOYMENT_MODE` previously populated this field via env
+    /// overlay. The field is retained for TOML loading (`loader.rs`) and unsigned-local-context
+    /// validation; env overlay no longer reads the retired key.
     pub deployment_mode: RuntimeDeploymentMode,
     pub runtime_target: RuntimeTarget,
 }
@@ -376,6 +379,54 @@ impl DiscoveryRuntimeConfig {
             if !self.security.tls_enabled && !self.security.mtls_enabled {
                 return Err(DiscoveryError::InvalidConfig(
                     "production server config must enable TLS or mTLS".to_string(),
+                ));
+            }
+
+            // Production deployments MUST require mTLS (mutual TLS) for all
+            // gRPC clients, not just server-side TLS. This aligns with
+            // NIST SP 800-207 (Zero Trust Architecture) and SP 800-204D
+            // (microservice security), which require mutual authentication
+            // for service-to-service traffic regardless of network position.
+            // Single-direction TLS only proves the server's identity to the
+            // client; mTLS additionally proves the client's identity to the
+            // server, preventing unauthorized workloads from invoking the
+            // control plane.
+            if !self.security.mtls_enabled {
+                return Err(DiscoveryError::InvalidConfig(
+                    "production security config must enable mTLS (client certificate verification)"
+                        .to_string(),
+                ));
+            }
+
+            require_file_reference(
+                "mTLS client CA certificate file",
+                self.security.client_ca_cert_file.as_deref(),
+            )?;
+
+            // Production deployments MUST enable rate limiting, circuit
+            // breaking, and read-only degradation. This aligns with
+            // OWASP API4:2023 (Unrestricted Resource Consumption) and
+            // NIST SP 800-204D §4, which require rate limiting and backpressure
+            // at microservice entry points to prevent DoS and cascading
+            // failures. Disabling these in production leaves the control plane
+            // vulnerable to overload-induced outages.
+            if !self.resilience.rate_limit.enabled {
+                return Err(DiscoveryError::InvalidConfig(
+                    "production resilience.rate_limit must be enabled (OWASP API4:2023)"
+                        .to_string(),
+                ));
+            }
+
+            if !self.resilience.circuit_breaker.enabled {
+                return Err(DiscoveryError::InvalidConfig(
+                    "production resilience.circuit_breaker must be enabled".to_string(),
+                ));
+            }
+
+            if !self.resilience.degradation.read_only_on_storage_failure {
+                return Err(DiscoveryError::InvalidConfig(
+                    "production resilience.degradation.read_only_on_storage_failure must be enabled"
+                        .to_string(),
                 ));
             }
 

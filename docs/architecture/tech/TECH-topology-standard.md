@@ -12,13 +12,13 @@ Discovery is a unified-process gRPC control plane. Clients connect to **applicat
 `standalone.unified-process.development` — start the service host with:
 
 ```bash
-pnpm discovery:dev
+pnpm dev
 ```
 
 Cloud development profile:
 
 ```bash
-pnpm discovery:dev:cloud
+pnpm dev:cloud
 ```
 
 ## Surfaces

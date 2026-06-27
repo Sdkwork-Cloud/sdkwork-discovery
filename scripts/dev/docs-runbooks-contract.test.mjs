@@ -16,7 +16,7 @@ for (const relativePath of requiredRunbooks) {
   assert.ok(fs.existsSync(absolutePath), `missing runbook ${relativePath}`);
   const source = fs.readFileSync(absolutePath, 'utf8');
   assert.match(source, /## Rollback/);
-  assert.match(source, /pnpm run (verify|db:|package:server:validate)/);
+  assert.match(source, /pnpm run (verify|db:|release:validate)/);
 }
 
 const operatorGuide = fs.readFileSync(

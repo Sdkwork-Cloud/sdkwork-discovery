@@ -303,6 +303,12 @@ pub fn decrement_active_streams(surface: &str) {
 }
 
 pub fn set_health_status(healthy: bool) {
+    set_health_status_value(if healthy { 1.0 } else { 0.0 });
+}
+
+/// Records the runtime health status as a gauge value:
+/// `0` = not serving, `1` = serving, `2` = degraded (serving stale reads).
+pub fn set_health_status_value(value: f64) {
     let labels = telemetry();
     gauge!(
         "discovery_health_status",
@@ -311,7 +317,7 @@ pub fn set_health_status(healthy: bool) {
         "deployment_profile" => labels.deployment_profile.clone(),
         "runtime_target" => labels.runtime_target.clone(),
     )
-    .set(if healthy { 1.0 } else { 0.0 });
+    .set(value);
 }
 
 pub fn describe_metrics() {
@@ -342,7 +348,7 @@ pub fn describe_metrics() {
     );
     describe_gauge!(
         "discovery_health_status",
-        "Discovery process health status (1=serving, 0=not serving)"
+        "Discovery runtime health status (0=not serving, 1=serving, 2=degraded)"
     );
 }
 

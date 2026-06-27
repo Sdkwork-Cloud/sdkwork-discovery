@@ -18,3 +18,7 @@ sdks/**/node_modules/
 *.db
 *.log
 /dist/
+
+# SDKWork local runtime state
+.runtime/
+**/.runtime/

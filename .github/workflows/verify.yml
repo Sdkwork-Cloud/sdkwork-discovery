@@ -67,5 +67,5 @@ jobs:
 
       - name: Build and validate server release package
         run: |
-          pnpm run package:server
-          pnpm run package:server:validate
+          pnpm run release:package
+          pnpm run release:validate

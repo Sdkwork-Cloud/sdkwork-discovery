@@ -22,10 +22,11 @@ default_deadline_ms = 30000
 [security]
 auth_mode = "service-token"
 tls_enabled = true
-mtls_enabled = false
+mtls_enabled = true
 allow_unsigned_local_context = false
 server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
 server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key"
+client_ca_cert_file = "/run/secrets/sdkwork/discovery/client-ca.crt"
 
 [security.service_token]
 hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
@@ -74,4 +75,19 @@ durable_poll_interval_ms = 1000
 durable_replay_batch_size = 1000
 
 [resilience]
-# Enable only when the deployment needs throttling, circuit breaking, or read-only degradation.
+# Production deployments MUST enable rate limiting, circuit breaking, and
+# read-only degradation per OWASP API4:2023 and NIST SP 800-204D. The
+# production config validator rejects configs that disable any of these.
+
+[resilience.rate_limit]
+enabled = true
+requests_per_second = 1000
+burst_capacity = 2000
+
+[resilience.circuit_breaker]
+enabled = true
+failure_threshold = 5
+recovery_timeout_ms = 5000
+
+[resilience.degradation]
+read_only_on_storage_failure = true

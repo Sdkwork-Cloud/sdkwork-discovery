@@ -4,9 +4,10 @@ use std::fs;
 use sdkwork_discovery_config::{DiscoveryRuntimeConfig, StorageProvider};
 use sdkwork_discovery_core::{ConfigPolicy, DiscoveryControlPlane, RegistryPolicy};
 use sdkwork_discovery_rpc::{
-    CircuitBreakerConfig, DegradationConfig, DiscoveryRpcRuntime, DiscoveryRpcRuntimeConfig,
-    DiscoveryRpcServerConfig, DiscoveryRpcServerHandle, DiscoveryRpcServiceTokenVerifierConfig,
-    DiscoveryRpcServices, DiscoveryRpcTlsIdentity, RateLimitConfig, RuntimeResilienceConfig,
+    CircuitBreakerConfig, DegradationConfig, DiscoveryHealthState, DiscoveryRpcRuntime,
+    DiscoveryRpcRuntimeConfig, DiscoveryRpcServerConfig, DiscoveryRpcServerHandle,
+    DiscoveryRpcServiceTokenVerifierConfig, DiscoveryRpcServices, DiscoveryRpcTlsIdentity,
+    RateLimitConfig, RuntimeResilienceConfig,
 };
 use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore, WatchEventStore};
 use sdkwork_discovery_storage_memory::MemoryDiscoveryStore;
@@ -190,6 +191,13 @@ impl DiscoveryServiceHostGrpcServer {
         self.handles.len()
     }
 
+    /// Returns the shared runtime health state shared by every bound gRPC
+    /// server. All servers run the same RPC actor, so the first handle's cell
+    /// is authoritative. Returns `None` when gRPC health reporting is disabled.
+    pub fn health_state(&self) -> Option<DiscoveryHealthState> {
+        self.handles.iter().find_map(|handle| handle.health_state())
+    }
+
     pub async fn shutdown(self) {
         for handle in self.handles {
             handle.shutdown().await;
@@ -214,7 +222,7 @@ fn build_runtime_storage(
                     "storage provider postgres requires [storage.postgres]".to_string(),
                 )
             })?;
-            let store = PostgresDiscoveryStore::new_lazy(transport, None)?;
+            let store = PostgresDiscoveryStore::new_lazy(transport)?;
             let safe_summary = store.safe_summary();
             Ok(DiscoveryRuntimeStorage::Postgres {
                 control_plane: Some(DiscoveryControlPlane::new(
@@ -248,7 +256,7 @@ fn build_runtime_storage(
                     "storage provider redis requires [storage.redis]".to_string(),
                 )
             })?;
-            let store = RedisDiscoveryStore::new_lazy(transport, None)?;
+            let store = RedisDiscoveryStore::new_lazy(transport)?;
             let safe_summary = store.safe_summary().to_string();
             Ok(DiscoveryRuntimeStorage::Redis {
                 control_plane: Some(DiscoveryControlPlane::new(

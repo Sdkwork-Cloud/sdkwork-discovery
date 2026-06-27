@@ -1,6 +1,6 @@
 use sdkwork_discovery_config::{
-    DiscoveryRuntimeConfig, RuntimeDeploymentMode, RuntimeEnvironment, RuntimeTarget,
-    StorageCredentialSource, StorageProvider, StorageRole,
+    DiscoveryRuntimeConfig, RuntimeEnvironment, RuntimeTarget, StorageCredentialSource,
+    StorageProvider, StorageRole,
 };
 use std::collections::BTreeMap;
 
@@ -13,16 +13,33 @@ allow_unsigned_local_context = true"#;
 const PRODUCTION_SIGNED_SECURITY_BLOCK: &str = r#"[security]
 auth_mode = "service-token"
 tls_enabled = true
-mtls_enabled = false
+mtls_enabled = true
 allow_unsigned_local_context = false
 server_tls_cert_file = "/run/secrets/sdkwork/discovery/server.crt"
 server_tls_key_file = "/run/secrets/sdkwork/discovery/server.key"
+client_ca_cert_file = "/run/secrets/sdkwork/discovery/client-ca.crt"
 
 [security.service_token]
 hmac_secret_file = "/run/secrets/sdkwork/discovery/service-token-hmac.secret"
 issuer = "sdkwork-discovery"
 audience = "sdkwork-discovery-rpc"
 max_token_ttl_seconds = 3600"#;
+
+const PRODUCTION_RESILIENCE_BLOCK: &str = r#"
+[resilience]
+
+[resilience.rate_limit]
+enabled = true
+requests_per_second = 1000
+burst_capacity = 2000
+
+[resilience.circuit_breaker]
+enabled = true
+failure_threshold = 5
+recovery_timeout_ms = 5000
+
+[resilience.degradation]
+read_only_on_storage_failure = true"#;
 
 fn minimal_config(profile: &str, environment: Option<&str>) -> String {
     let environment_line = environment
@@ -331,10 +348,6 @@ max_connections = 16"#,
 fn env_overlay_maps_topology_surface_bind_keys() {
     let toml = minimal_config("dev", Some("development"));
     let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_HOSTING".to_string(),
-            "self-hosted".to_string(),
-        ),
         (
             "SDKWORK_DISCOVERY_SERVICE_LAYOUT".to_string(),
             "unified-process".to_string(),
@@ -935,10 +948,6 @@ fn env_overlay_can_override_standard_runtime_and_server_fields() {
             "test".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DEPLOYMENT_MODE".to_string(),
-            "test".to_string(),
-        ),
-        (
             "SDKWORK_DISCOVERY_RUNTIME_TARGET".to_string(),
             "test-runner".to_string(),
         ),
@@ -957,7 +966,6 @@ fn env_overlay_can_override_standard_runtime_and_server_fields() {
 
     assert_eq!(config.runtime.environment, RuntimeEnvironment::Test);
     assert_eq!(config.runtime.config_profile.as_deref(), Some("test"));
-    assert_eq!(config.runtime.deployment_mode, RuntimeDeploymentMode::Test);
     assert_eq!(config.runtime.runtime_target, RuntimeTarget::TestRunner);
     assert_eq!(config.server.default_deadline_ms, 2500);
     assert!(!config.watch.enabled);
@@ -1395,6 +1403,7 @@ fn production_rejects_memory_storage_provider() {
     );
     toml = toml.replace("enable_reflection = true", "enable_reflection = false");
     toml = toml.replace(DEV_SECURITY_BLOCK, PRODUCTION_SIGNED_SECURITY_BLOCK);
+    toml.push_str(PRODUCTION_RESILIENCE_BLOCK);
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
 
@@ -1404,7 +1413,7 @@ fn production_rejects_memory_storage_provider() {
 
 #[test]
 fn production_rejects_sqlite_storage_provider() {
-    let toml = minimal_config("prod", Some("production"))
+    let mut toml = minimal_config("prod", Some("production"))
         .replace(
             r#"grpc_bind_host = "127.0.0.1""#,
             r#"grpc_bind_host = "0.0.0.0""#,
@@ -1421,6 +1430,7 @@ provider = "sqlite"
 file = "/var/lib/sdkwork/discovery/discovery.sqlite"
 max_connections = 4"#,
         );
+    toml.push_str(PRODUCTION_RESILIENCE_BLOCK);
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
 
@@ -1430,7 +1440,7 @@ max_connections = 4"#,
 
 #[test]
 fn production_rejects_enabled_rpc_reflection_without_access_control() {
-    let toml = minimal_config("prod", Some("production"))
+    let mut toml = minimal_config("prod", Some("production"))
         .replace(
             r#"grpc_bind_host = "127.0.0.1""#,
             r#"grpc_bind_host = "0.0.0.0""#,
@@ -1452,6 +1462,7 @@ tls_enabled = true
 connect_timeout_ms = 3000
 max_connections = 16"#,
         );
+    toml.push_str(PRODUCTION_RESILIENCE_BLOCK);
 
     let error = DiscoveryRuntimeConfig::from_toml_str(&toml).unwrap_err();
 
@@ -1584,19 +1595,23 @@ fn deployment_profile_defaults_to_standalone() {
 }
 
 #[test]
-fn hosting_env_overlay_maps_to_deployment_profile() {
+fn hosting_env_overlay_is_retired_and_rejected() {
     let mut env = BTreeMap::new();
     env.insert(
         "SDKWORK_DISCOVERY_HOSTING".to_string(),
         "cloud-hosted".to_string(),
     );
 
-    let config =
-        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
+    let result = DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env);
 
-    assert_eq!(
-        config.runtime.deployment_profile,
-        sdkwork_discovery_contract::RuntimeDeploymentProfile::Cloud
+    assert!(
+        result.is_err(),
+        "SDKWORK_DISCOVERY_HOSTING must be rejected as a retired env key"
+    );
+    let message = result.unwrap_err().to_string().to_lowercase();
+    assert!(
+        message.contains("unsupported discovery env key"),
+        "error should mention unsupported env key, got: {message}"
     );
 }
 

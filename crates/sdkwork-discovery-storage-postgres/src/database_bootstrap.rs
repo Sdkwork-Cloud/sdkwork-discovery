@@ -14,7 +14,9 @@ use crate::options::PostgresConnectionOptions;
 
 pub const DISCOVERY_DATABASE_SERVICE_NAME: &str = "DISCOVERY";
 
-pub fn postgres_database_config(options: &PostgresConnectionOptions) -> DatabaseConfig {
+pub fn postgres_database_config(
+    options: &PostgresConnectionOptions,
+) -> DiscoveryResult<DatabaseConfig> {
     let ssl_mode = if options.tls_enabled() {
         ConfigPgSslMode::Require
     } else {
@@ -26,9 +28,9 @@ pub fn postgres_database_config(options: &PostgresConnectionOptions) -> Database
         ..Default::default()
     };
 
-    DatabaseConfig {
+    Ok(DatabaseConfig {
         engine: DatabaseEngine::Postgres,
-        url: options.database_url(),
+        url: options.database_url()?,
         mode: DeploymentMode::Standalone,
         table_prefix: String::new(),
         max_connections: options.max_connections(),
@@ -36,7 +38,7 @@ pub fn postgres_database_config(options: &PostgresConnectionOptions) -> Database
         acquire_timeout_secs: options.connect_timeout_ms().div_ceil(1000).max(1),
         postgres,
         ..Default::default()
-    }
+    })
 }
 
 pub async fn connect_postgres_pool(config: DatabaseConfig) -> DiscoveryResult<DatabasePool> {
@@ -46,7 +48,7 @@ pub async fn connect_postgres_pool(config: DatabaseConfig) -> DiscoveryResult<Da
 }
 
 pub fn lazy_postgres_pool(options: &PostgresConnectionOptions) -> DiscoveryResult<Pool<Postgres>> {
-    let config = postgres_database_config(options);
+    let config = postgres_database_config(options)?;
     let mut connect_options = PgConnectOptions::from_str(&config.url)
         .map_err(|error| DiscoveryError::InvalidConfig(format!("postgres url: {error}")))?
         .ssl_mode(if options.tls_enabled() {

@@ -130,6 +130,24 @@ impl ServiceTokenVerifier {
             ));
         }
 
+        // Service-token callers MUST carry a tenant_id claim. Without this
+        // requirement, a token without tenant_id bypasses
+        // `require_namespace_tenant_access` entirely (the helper returns Ok when
+        // `caller.tenant_id` is None), allowing cross-tenant namespace access.
+        // The unsigned-local-context path (development-only) is unaffected
+        // because it never enters this verifier.
+        if claims
+            .tenant_id
+            .as_deref()
+            .map(str::trim)
+            .unwrap_or_default()
+            .is_empty()
+        {
+            return Err(DiscoveryError::Unauthenticated(
+                "service-token must carry a tenant_id claim".to_string(),
+            ));
+        }
+
         if claims.expires_at_ms() <= current_time_millis()? {
             return Err(DiscoveryError::Unauthenticated(
                 "service-token is expired".to_string(),

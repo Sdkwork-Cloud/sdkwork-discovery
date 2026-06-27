@@ -119,7 +119,6 @@ for (const profileId of Object.keys(spec.profileFiles ?? {})) {
   assert.ok(fs.existsSync(absoluteProfilePath), `${profilePath} should exist for ${profileId}`);
   const profileEnv = readText(profilePath);
   assert.match(profileEnv, /SDKWORK_DISCOVERY_PROFILE_ID=/u);
-  assert.match(profileEnv, /SDKWORK_DISCOVERY_HOSTING=/u);
   assert.match(profileEnv, /SDKWORK_DISCOVERY_SERVICE_LAYOUT=/u);
   assert.match(profileEnv, /SDKWORK_DISCOVERY_ENVIRONMENT=/u);
   assert.match(profileEnv, /SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL=/u);
@@ -148,13 +147,13 @@ assert.match(
 );
 assert.match(
   JSON.stringify(packageJson.scripts ?? {}),
-  /discovery:dev/u,
-  'package.json must expose discovery:dev',
+  /"dev"/u,
+  'package.json must expose dev',
 );
 assert.match(
   JSON.stringify(packageJson.scripts ?? {}),
-  /discovery:dev:cloud/u,
-  'package.json must expose discovery:dev:cloud',
+  /"dev:cloud"/u,
+  'package.json must expose dev:cloud',
 );
 assert.match(
   JSON.stringify(packageJson.scripts ?? {}),
@@ -168,8 +167,8 @@ assert.match(
 );
 
 assert.equal(spec.scripts?.discoveryDev, 'scripts/discovery-dev.mjs');
-assert.equal(spec.scripts?.pnpm?.['discovery:dev']?.deploymentProfile, 'standalone');
-assert.equal(spec.scripts?.pnpm?.['discovery:dev:cloud']?.deploymentProfile, 'cloud');
+assert.equal(spec.scripts?.pnpm?.['dev']?.deploymentProfile, 'standalone');
+assert.equal(spec.scripts?.pnpm?.['dev:cloud']?.deploymentProfile, 'cloud');
 
 const { loadProfile, resolveSurfaceGrpcUrl } = await import(
   pathToFileURL(path.join(repoRoot, 'scripts/lib/discovery-topology.mjs')).href

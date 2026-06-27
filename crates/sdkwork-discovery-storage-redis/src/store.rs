@@ -10,7 +10,12 @@ use tokio::sync::Mutex;
 use crate::connection::{RedisConnectionOptions, DISCOVERY_REDIS_KEY_PREFIX};
 
 pub fn map_redis_error(error: redis::RedisError) -> sdkwork_discovery_contract::DiscoveryError {
-    sdkwork_discovery_contract::DiscoveryError::InvalidConfig(format!("redis error: {error}"))
+    // Redis driver errors are runtime failures (connection loss, AUTH failure,
+    // pool exhaustion), not configuration defects. Map them to `Unavailable` so
+    // the RPC layer surfaces UNAVAILABLE instead of FAILED_PRECONDITION and
+    // returns a fixed sanitized message; the original driver message (which may
+    // contain host/port and AUTH details) stays in server logs only.
+    sdkwork_discovery_contract::DiscoveryError::Unavailable(format!("redis error: {error}"))
 }
 
 #[derive(Debug)]
@@ -24,12 +29,10 @@ pub struct RedisDiscoveryStore {
 }
 
 impl RedisDiscoveryStore {
-    pub fn new_lazy(
-        transport: &StorageTransportConfig,
-        password: Option<&str>,
-    ) -> DiscoveryResult<Self> {
-        let options = RedisConnectionOptions::from_transport(transport, password)?;
-        let client = redis::Client::open(options.redis_url()).map_err(map_redis_error)?;
+    pub fn new_lazy(transport: &StorageTransportConfig) -> DiscoveryResult<Self> {
+        let options = RedisConnectionOptions::from_transport(transport)?;
+        let redis_url = options.redis_url()?;
+        let client = redis::Client::open(redis_url).map_err(map_redis_error)?;
         Ok(Self {
             client: Some(client),
             state_key: options.state_key(),
