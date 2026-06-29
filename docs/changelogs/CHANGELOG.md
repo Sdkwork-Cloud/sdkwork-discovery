@@ -4,6 +4,14 @@ All notable changes to `sdkwork-discovery` are documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and aligns with `RELEASE_SPEC.md` and `DOCUMENTATION_SPEC.md`.
 
+## [Unreleased]
+
+### Changed
+
+- Service-token verification, storage content hashes, and contract encryption encoding now use `sdkwork-utils-rust` instead of duplicated local crypto helpers
+- GitHub `verify` workflow clones `sdkwork-web-framework` and `sdkwork-utils` sibling repositories required by path dependencies
+- Topology profile env files now declare application and operations gRPC bind/URL keys required by `specs/topology.spec.json`
+
 ## [0.1.0] - 2026-06-23
 
 ### Added

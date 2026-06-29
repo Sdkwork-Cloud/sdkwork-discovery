@@ -1,16 +1,11 @@
 use std::fmt::{Debug, Formatter};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use base64::Engine;
-use hmac::{Hmac, Mac};
 use sdkwork_discovery_contract::{
     CallerContext, ConfigPermission, DiscoveryError, DiscoveryResult, RegistryPermission,
 };
+use sdkwork_utils_rust::{base64url_decode, sha256_hash, verify_hmac_sha256_base64url};
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
-
-type HmacSha256 = Hmac<Sha256>;
 
 const TOKEN_PREFIX: &str = "sdkwork-discovery-v1";
 const TOKEN_HEADER_TYPE: &str = "sdkwork.discovery.service-token.v1";
@@ -93,18 +88,21 @@ impl ServiceTokenVerifier {
     }
 
     fn verify_signature(&self, token: &ParsedServiceToken<'_>) -> DiscoveryResult<()> {
-        let mut mac = HmacSha256::new_from_slice(&self.config.hmac_secret).map_err(|_| {
-            DiscoveryError::InvalidConfig("service-token HMAC secret is invalid".to_string())
-        })?;
-        mac.update(token.signing_input.as_bytes());
-
-        let signature = URL_SAFE_NO_PAD.decode(token.signature).map_err(|_| {
+        let signature = base64url_decode(token.signature).ok_or_else(|| {
             DiscoveryError::Unauthenticated("service-token signature is not base64url".to_string())
         })?;
 
-        mac.verify_slice(&signature).map_err(|_| {
-            DiscoveryError::Unauthenticated("service-token signature is invalid".to_string())
-        })
+        if !verify_hmac_sha256_base64url(
+            token.signing_input.as_bytes(),
+            &self.config.hmac_secret,
+            &signature,
+        ) {
+            return Err(DiscoveryError::Unauthenticated(
+                "service-token signature is invalid".to_string(),
+            ));
+        }
+
+        Ok(())
     }
 
     fn validate_claims(
@@ -177,7 +175,7 @@ impl ServiceTokenVerifier {
             ));
         }
 
-        if claims.access_token_sha256 != sha256_hex(access_token.trim()) {
+        if claims.access_token_sha256 != sha256_hash(access_token.trim().as_bytes()) {
             return Err(DiscoveryError::Unauthenticated(
                 "access-token is not bound to service-token".to_string(),
             ));
@@ -322,9 +320,8 @@ fn decode_json_part<T>(label: &'static str, value: &str) -> DiscoveryResult<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    let bytes = URL_SAFE_NO_PAD
-        .decode(value)
-        .map_err(|_| DiscoveryError::Unauthenticated(format!("{label} is not base64url")))?;
+    let bytes = base64url_decode(value)
+        .ok_or_else(|| DiscoveryError::Unauthenticated(format!("{label} is not base64url")))?;
     serde_json::from_slice(&bytes)
         .map_err(|_| DiscoveryError::Unauthenticated(format!("{label} is not valid JSON")))
 }
@@ -334,22 +331,4 @@ fn current_time_millis() -> DiscoveryResult<u64> {
         DiscoveryError::InvalidConfig("system clock is before UNIX_EPOCH".to_string())
     })?;
     Ok(elapsed.as_millis() as u64)
-}
-
-fn sha256_hex(value: &str) -> String {
-    let digest = Sha256::digest(value.as_bytes());
-    let mut output = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        output.push(nibble_to_hex(byte >> 4));
-        output.push(nibble_to_hex(byte & 0x0f));
-    }
-    output
-}
-
-fn nibble_to_hex(value: u8) -> char {
-    match value {
-        0..=9 => (b'0' + value) as char,
-        10..=15 => (b'a' + value - 10) as char,
-        _ => unreachable!("nibble values are always 0..=15"),
-    }
 }

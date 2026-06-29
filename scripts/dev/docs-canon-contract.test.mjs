@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-const prdPath = path.join(repoRoot, 'docs/product/PRD.md');
-const techPath = path.join(repoRoot, 'docs/architecture/TECH_ARCHITECTURE.md');
+const prdPath = path.join(repoRoot, 'docs/product/prd/PRD.md');
+const techPath = path.join(repoRoot, 'docs/architecture/tech/TECH_ARCHITECTURE.md');
 const indexPath = path.join(repoRoot, 'docs/INDEX.yaml');
 const agentsPath = path.join(repoRoot, 'AGENTS.md');
 const packageJsonPath = path.join(repoRoot, 'package.json');
@@ -34,11 +34,11 @@ assert.match(tech, /sdkwork-discovery-rpc-sdk/);
 assert.match(tech, /pnpm run verify/);
 
 assert.match(index, /kind:\s*sdkwork\.docs\.index/);
-assert.match(index, /docs\/product\/PRD\.md/);
-assert.match(index, /docs\/architecture\/TECH_ARCHITECTURE\.md/);
+assert.match(index, /docs\/product\/prd\/PRD\.md/);
+assert.match(index, /docs\/architecture\/tech\/TECH_ARCHITECTURE\.md/);
 
-assert.match(agents, /docs\/product\/PRD\.md/);
-assert.match(agents, /docs\/architecture\/TECH_ARCHITECTURE\.md/);
+assert.match(agents, /docs\/product\/prd\/PRD\.md/);
+assert.match(agents, /docs\/architecture\/tech\/TECH_ARCHITECTURE\.md/);
 
 assert.match(packageJson, /verify:docs/);
 assert.match(packageJson, /test:docs-canon/);

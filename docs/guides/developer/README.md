@@ -10,6 +10,8 @@ Local setup, verification, and contribution workflow for `sdkwork-discovery`.
   - `../sdkwork-specs`
   - `../sdkwork-database`
   - `../sdkwork-app-topology`
+  - `../sdkwork-web-framework`
+  - `../sdkwork-utils`
 
 ## Quick Start
 

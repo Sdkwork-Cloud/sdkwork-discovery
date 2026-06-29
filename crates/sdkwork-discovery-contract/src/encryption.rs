@@ -1,7 +1,6 @@
 use std::fmt;
 
-use base64::engine::general_purpose::STANDARD;
-use base64::Engine;
+use sdkwork_utils_rust::{base64_decode, base64_encode};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EncryptionAlgorithm {
@@ -34,16 +33,16 @@ pub struct EncryptedValue {
 
 impl EncryptedValue {
     pub fn to_storage_string(&self) -> String {
-        let nonce_b64 = STANDARD.encode(&self.nonce);
-        let ciphertext_b64 = STANDARD.encode(&self.ciphertext);
+        let nonce_b64 = base64_encode(&self.nonce);
+        let ciphertext_b64 = base64_encode(&self.ciphertext);
         format!("encrypted:aes-256-gcm:{nonce_b64}:{ciphertext_b64}")
     }
 
     pub fn from_storage_string(s: &str) -> Option<Self> {
         let parts: Vec<&str> = s.splitn(4, ':').collect();
         if parts.len() == 4 && parts[0] == "encrypted" && parts[1] == "aes-256-gcm" {
-            let nonce = STANDARD.decode(parts[2]).ok()?;
-            let ciphertext = STANDARD.decode(parts[3]).ok()?;
+            let nonce = base64_decode(parts[2])?;
+            let ciphertext = base64_decode(parts[3])?;
             Some(Self {
                 algorithm: EncryptionAlgorithm::Aes256Gcm,
                 nonce,

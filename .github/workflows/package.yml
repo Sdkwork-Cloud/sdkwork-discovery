@@ -90,6 +90,8 @@ jobs:
       dependency_refs_json: >-
         {
           "SDKWORK_DATABASE_REF": "${{ vars.SDKWORK_DATABASE_REF }}",
-          "SDKWORK_APP_TOPOLOGY_REF": "${{ vars.SDKWORK_APP_TOPOLOGY_REF }}"
+          "SDKWORK_APP_TOPOLOGY_REF": "${{ vars.SDKWORK_APP_TOPOLOGY_REF }}",
+          "SDKWORK_WEB_FRAMEWORK_REF": "${{ vars.SDKWORK_WEB_FRAMEWORK_REF }}",
+          "SDKWORK_UTILS_REF": "${{ vars.SDKWORK_UTILS_REF }}"
         }
     secrets: inherit

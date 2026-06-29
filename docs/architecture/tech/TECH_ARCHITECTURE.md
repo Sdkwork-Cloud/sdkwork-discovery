@@ -2,7 +2,7 @@
 
 Status: active
 Owner: SDKWork maintainers
-Updated: 2026-06-26
+Updated: 2026-06-29
 Specs: ARCHITECTURE_DECISION_SPEC.md, DOCUMENTATION_SPEC.md, DISCOVERY_SPEC.md, RPC_SPEC.md, HEALTH_CHECK_SPEC.md
 
 ## Document Map
@@ -21,6 +21,7 @@ Architecture detail lives in the linked TECH shards below.
 
 - **gRPC transport**: tonic + prost, generated from `sdkwork-discovery-rpc-proto`.
 - **Durable storage**: Postgres via `sdkwork-database-sqlx` and `sdkwork-database-config`; Redis cache adapter; SQLite for local development.
+- **Shared utilities**: crypto, encoding, and content hashing through `sdkwork-utils-rust` (service-token HMAC/SHA-256, storage idempotency hashes, encrypted config wire encoding).
 - **Memory cache**: in-process `sdkwork-discovery-storage-memory` for unit tests and ephemeral profiles.
 - **Health probes**: mounted through `sdkwork-web-bootstrap` `service_router`, exposed as `/healthz`, `/readyz`, `/livez`, and `/metrics`.
 - **SDK family**: the generated RPC SDK workspace `sdkwork-discovery-rpc-sdk` ships Rust and TypeScript bindings under `sdks/sdkwork-discovery-rpc-sdk/`.
@@ -62,5 +63,6 @@ Deployment and runtime topology follow `sdkwork-specs/DEPLOYMENT_SPEC.md` and th
 
 - `cargo test --workspace` covers unit, contract, and smoke tests.
 - `cargo fmt --check` and `cargo clippy --workspace --all-targets` gate style and lint.
+- `pnpm run verify` is the repository release gate (format, clippy, tests, topology, database contract, SDK, and documentation checks).
 - `pnpm verify:docs` and `pnpm test:docs-canon` gate Canon documentation contracts.
 - `xtask/sdkwork-discovery-standards` enforces module boundaries and production ops artifacts.

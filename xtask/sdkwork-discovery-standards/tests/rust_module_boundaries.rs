@@ -126,7 +126,75 @@ fn durable_storage_crates_integrate_sdkwork_database() {
     assert!(verify_workflow.contains("sdkwork-specs"));
     assert!(verify_workflow.contains("sdkwork-app-topology"));
     assert!(verify_workflow.contains("sdkwork-database"));
+    assert!(verify_workflow.contains("sdkwork-web-framework"));
+    assert!(verify_workflow.contains("sdkwork-utils"));
     assert!(verify_workflow.contains("package-smoke"));
+}
+
+#[test]
+fn crypto_and_hashing_use_sdkwork_utils_rust() {
+    let workspace_root = workspace_root();
+    let cargo_manifest = fs::read_to_string(workspace_root.join("Cargo.toml")).unwrap();
+    assert!(
+        cargo_manifest.contains("sdkwork-utils-rust"),
+        "workspace must declare sdkwork-utils-rust"
+    );
+
+    let rpc_manifest =
+        fs::read_to_string(workspace_root.join("crates/sdkwork-discovery-rpc/Cargo.toml")).unwrap();
+    assert!(
+        rpc_manifest.contains("sdkwork-utils-rust"),
+        "RPC crate must depend on sdkwork-utils-rust"
+    );
+
+    let service_token = fs::read_to_string(
+        workspace_root.join("crates/sdkwork-discovery-rpc/src/service_token.rs"),
+    )
+    .unwrap();
+    assert!(service_token.contains("sdkwork_utils_rust::"));
+    assert!(service_token.contains("sha256_hash"));
+    assert!(service_token.contains("verify_hmac_sha256_base64url"));
+    assert!(
+        !service_token.contains("nibble_to_hex"),
+        "service-token must not keep local hex encoding helpers"
+    );
+
+    for crate_name in [
+        "sdkwork-discovery-storage-memory",
+        "sdkwork-discovery-storage-postgres",
+        "sdkwork-discovery-storage-sqlite",
+    ] {
+        let manifest = fs::read_to_string(
+            workspace_root
+                .join("crates")
+                .join(crate_name)
+                .join("Cargo.toml"),
+        )
+        .unwrap();
+        assert!(
+            manifest.contains("sdkwork-utils-rust"),
+            "{crate_name} must depend on sdkwork-utils-rust"
+        );
+
+        let hash_module = fs::read_to_string(
+            workspace_root
+                .join("crates")
+                .join(crate_name)
+                .join("src/hash.rs"),
+        )
+        .unwrap();
+        assert!(
+            hash_module.contains("sha256_hash"),
+            "{crate_name} hash helper must use sdkwork-utils-rust"
+        );
+    }
+
+    let contract_encryption = fs::read_to_string(
+        workspace_root.join("crates/sdkwork-discovery-contract/src/encryption.rs"),
+    )
+    .unwrap();
+    assert!(contract_encryption.contains("base64_encode"));
+    assert!(contract_encryption.contains("base64_decode"));
 }
 
 #[test]
@@ -160,6 +228,7 @@ fn production_ops_artifacts_are_present() {
     assert!(prd.contains("Service Registry"));
     assert!(prd.contains("Config Registry"));
     assert!(tech_arch.contains("sdkwork-discovery-rpc-sdk"));
+    assert!(tech_arch.contains("sdkwork-utils-rust"));
     assert!(tech_arch.contains("Security, Privacy, And Observability"));
 
     let package_json = fs::read_to_string(workspace_root.join("package.json")).unwrap();

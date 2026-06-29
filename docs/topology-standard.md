@@ -27,6 +27,8 @@ pnpm dev:cloud
 | `application.public-ingress` | application | `sdkwork-discovery-service-host` (registry/config gRPC) |
 | `operations.control-ingress` | operations | `sdkwork-discovery-service-host` (admin gRPC) |
 
+Profile env files under `configs/topology/` declare `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_*` and `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_*` bind and gRPC URL keys for each deployment profile.
+
 Loader: `scripts/lib/discovery-topology.mjs` → `@sdkwork/app-topology`.
 
 Validate:

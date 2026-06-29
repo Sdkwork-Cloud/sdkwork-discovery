@@ -311,6 +311,14 @@
       "completedAt": "2026-06-18",
       "breaking": false,
       "description": "Added sdkwork.workflow.json, .github/workflows/package.yml, and scripts/package-server.mjs"
+    },
+    {
+      "issue": "Crypto and content hashing duplicated local helpers instead of sdkwork-utils-rust",
+      "target": "sdkwork-utils-rust",
+      "status": "completed",
+      "completedAt": "2026-06-29",
+      "breaking": false,
+      "description": "RPC service-token verification, storage content hashes, and contract encryption encoding now use sdkwork-utils-rust; CI clones sdkwork-utils and sdkwork-web-framework siblings"
     }
   ]
 }

@@ -3,7 +3,7 @@
 Status: draft
 Owner: SDKWork maintainers
 Application: sdkwork-discovery
-Updated: 2026-06-26
+Updated: 2026-06-29
 Specs: REQUIREMENTS_SPEC.md, DOCUMENTATION_SPEC.md, DISCOVERY_SPEC.md
 
 ## Document Map
