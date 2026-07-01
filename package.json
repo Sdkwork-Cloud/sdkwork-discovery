@@ -5,15 +5,15 @@
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
-    "@sdkwork/app-topology": "file:../sdkwork-app-topology"
+    "@sdkwork/app-topology": "workspace:*"
   },
   "scripts": {
     "dev": "node scripts/discovery-dev.mjs --deployment-profile standalone",
     "dev:cloud": "node scripts/discovery-dev.mjs --deployment-profile cloud",
     "build": "cargo build --workspace",
     "test": "cargo test --workspace",
-    "check": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && pnpm run db:validate",
-    "verify": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && pnpm run test:contract:database && pnpm run verify:rpc-proto && pnpm run test:topology-validate && pnpm run topology:matrix && pnpm run test:topology-baggage && pnpm run test:package-contract && pnpm run test:sdk-typescript-helpers && pnpm run test:docs-runbooks && pnpm run test:docs-canon && pnpm run verify:docs && pnpm run verify:sdk-rust && pnpm run verify:sdk-typescript",
+    "check": "pnpm run check:app-composition && cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && pnpm run db:validate",
+    "verify": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace && pnpm run test:contract:database && pnpm run verify:rpc-proto && pnpm run test:topology-validate && pnpm run topology:matrix && pnpm run test:topology-baggage && pnpm run test:package-contract && pnpm run test:sdk-typescript-helpers && pnpm run test:docs-runbooks && pnpm run test:docs-canon && pnpm run verify:docs && pnpm run verify:sdk-rust && pnpm run verify:sdk-typescript && pnpm run check:app-composition",
     "clean": "cargo clean && node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "format": "cargo fmt --all",
     "format:check": "cargo fmt --all -- --check",
@@ -33,7 +33,7 @@
     "verify:rpc-proto": "node scripts/verify-rpc-proto.mjs",
     "verify:sdk-rust": "cargo test --manifest-path sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-rust/Cargo.toml",
     "verify:sdk-typescript": "pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript install && pnpm --dir sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript check",
-    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql --module-id discovery --owner discovery-platform --prefixes discovery_ --engines postgres,sqlite",
+    "db:materialize:contract": "node ../sdkwork-specs/tools/materialize-database-contract-from-baseline.mjs --root . --baseline database/ddl/baseline/postgres/0001_discovery_baseline.sql --module-id discovery --owner discovery-platform --prefixes discovery_ --engines postgres,sqlite",
     "db:validate": "node ../sdkwork-specs/tools/check-database-framework-standard.mjs --root .",
     "db:plan": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . plan",
     "db:init": "cargo run --manifest-path ../sdkwork-database/Cargo.toml -p sdkwork-database-cli -- --app-root . init",
@@ -47,6 +47,7 @@
     "gateway:package:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs bundle --root .",
     "gateway:validate:cloud": "node ../sdkwork-app-topology/scripts/gateway-cloud-bundle.mjs validate --root .",
     "db:postgres:init": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode init --config .env.postgres --app-root .",
-    "db:postgres:plan": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run"
+    "db:postgres:plan": "node ../sdkwork-specs/tools/postgres/postgres-db-cli.mjs --mode plan --config .env.postgres --app-root . --dry-run",
+    "check:app-composition": "node ../sdkwork-specs/tools/verify-repo.mjs --root ."
   }
 }

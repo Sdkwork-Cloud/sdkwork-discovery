@@ -22,3 +22,22 @@ sdks/**/node_modules/
 # SDKWork local runtime state
 .runtime/
 **/.runtime/
+!.env.example
+!.env.*.example
+!.env.postgres.example
+**/dist/
+coverage/
+**/.pnpm-store/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+**/.sdkwork/local/
+**/.sdkwork/secrets/
+**/.sdkwork/cache/
+**/.sdkwork/tmp/
+**/.sdkwork/dart/pub-cache/
+**/.sdkwork/manual-backups/
+**/.sdkwork/sdkwork-generator-changes.json
+**/.sdkwork/sdkwork-generator-manifest.json
+**/.sdkwork/sdkwork-generator-report.json

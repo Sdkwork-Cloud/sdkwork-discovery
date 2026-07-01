@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const baselinePath = path.join(
   root,
-  'database/ddl/baseline/postgres/0001_discovery_legacy_baseline.sql',
+  'database/ddl/baseline/postgres/0001_discovery_baseline.sql',
 );
 const sql = fs.readFileSync(baselinePath, 'utf8');
 const seen = new Set();

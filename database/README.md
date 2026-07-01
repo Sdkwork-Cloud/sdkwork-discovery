@@ -6,27 +6,23 @@ Canonical lifecycle assets for `sdkwork-discovery` per `DATABASE_FRAMEWORK_SPEC.
 - serviceCode: `DISCOVERY`
 - tablePrefix: `discovery_`
 
+## Initialization state
+
+This module is in **initialization state** for greenfield deployments:
+
+1. **Baseline** — `database/ddl/baseline/{engine}/0001_discovery_baseline.sql` contains the full DDL snapshot.
+2. **Migrations** — `database/migrations/{engine}/` is reserved for post-GA incremental schema changes only. It is intentionally empty at initialization.
+3. **Drift** — run `pnpm db:drift:check` before release.
+
 ## Commands
 
 ```bash
-pnpm run db:materialize:contract
 pnpm run db:validate
+pnpm run db:materialize:contract
+pnpm run db:plan
+pnpm run db:init
 pnpm run db:migrate
+pnpm run db:seed
 pnpm run db:status
+pnpm run db:drift:check
 ```
-
-## Migrations
-
-Authoritative migration SQL lives under:
-
-- `database/migrations/postgres/`
-- `database/migrations/sqlite/`
-
-Crate-local `crates/sdkwork-discovery-storage-*/migrations/` paths are deprecated. Storage crates load SQL through `include_str!` from `database/migrations/`.
-
-Legacy baselines are preserved under `database/ddl/baseline/` for drift review only.
-
-## Runtime bootstrap
-
-- `sdkwork-discovery-database-host` integrates `sdkwork-database-lifecycle` for init/migrate when enabled by deployment policy.
-- `apply_initial_schema = true` is allowed only outside production. Production deployments must run migrations through the database CLI or pipeline before serving traffic.

@@ -85,5 +85,6 @@
       "deployUrl": "https://discovery.sdkwork.com",
       "deployEnv": "production"
     }
-  }
+  },
+  "sdkDependencies": []
 }

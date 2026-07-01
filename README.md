@@ -1,4 +1,5 @@
 # sdkwork-discovery
+repository-kind: foundation-dependency
 
 Rust gRPC control plane for SDKWork service discovery and versioned runtime configuration.
 
