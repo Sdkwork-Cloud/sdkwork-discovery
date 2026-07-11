@@ -1,17 +1,12 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 4,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-discovery",
   "archetype": "application-http-gateway",
   "archetypeNotes": "Nearest shared topology template for unified-process ingress; discovery surfaces are gRPC-only (application.public-ingress, operations.control-ingress), not HTTP. sdkwork-web-framework is not required because this app owns no HTTP *-api surfaces.",
   "profileRoot": "configs/topology",
-  "profilePattern": "{deploymentProfile}.{serviceLayout}.{environment}.env",
+  "profilePattern": "{deploymentProfile}.{environment}.env",
   "vocabulary": {
-    "serviceLayout": {
-      "allowed": [
-        "unified-process"
-      ]
-    },
     "environment": {
       "allowed": [
         "development",
@@ -32,17 +27,17 @@
     }
   },
   "defaults": {
-    "developmentProfileId": "standalone.unified-process.development",
-    "productionProfileId": "cloud.unified-process.production"
+    "developmentProfileId": "standalone.development",
+    "productionProfileId": "cloud.production",
+    "desktopBuildProfileId": "standalone.production"
   },
   "profileFiles": {
-    "standalone.unified-process.development": "configs/topology/standalone.unified-process.development.env",
-    "cloud.unified-process.development": "configs/topology/cloud.unified-process.development.env",
-    "standalone.unified-process.production": "configs/topology/standalone.unified-process.production.env",
-    "cloud.unified-process.production": "configs/topology/cloud.unified-process.production.env"
+    "standalone.development": "configs/topology/standalone.development.env",
+    "cloud.development": "configs/topology/cloud.development.env",
+    "standalone.production": "configs/topology/standalone.production.env",
+    "cloud.production": "configs/topology/cloud.production.env"
   },
   "envKeys": {
-    "serviceLayout": "SDKWORK_DISCOVERY_SERVICE_LAYOUT",
     "environment": "SDKWORK_DISCOVERY_ENVIRONMENT",
     "profileId": "SDKWORK_DISCOVERY_PROFILE_ID",
     "deploymentProfile": "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE"
@@ -105,7 +100,7 @@
   },
   "orchestration": {
     "profiles": {
-      "standalone.unified-process.development": {
+      "standalone.development": {
         "processes": [
           {
             "id": "application.public-ingress",
@@ -118,7 +113,7 @@
           "application.public-ingress"
         ]
       },
-      "cloud.unified-process.development": {
+      "cloud.development": {
         "processes": [
           {
             "id": "application.public-ingress",
@@ -131,7 +126,7 @@
           "application.public-ingress"
         ]
       },
-      "standalone.unified-process.production": {
+      "standalone.production": {
         "processes": [
           {
             "id": "application.public-ingress",
@@ -144,7 +139,7 @@
           "application.public-ingress"
         ]
       },
-      "cloud.unified-process.production": {
+      "cloud.production": {
         "processes": [
           {
             "id": "application.public-ingress",

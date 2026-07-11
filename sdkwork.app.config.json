@@ -48,7 +48,8 @@
     "defaultPlatform": "SERVER",
     "defaultArchitecture": "x64",
     "supportedDeploymentProfiles": [
-      "cloud"
+      "cloud",
+      "standalone"
     ],
     "defaultDeploymentProfile": "cloud"
   },
