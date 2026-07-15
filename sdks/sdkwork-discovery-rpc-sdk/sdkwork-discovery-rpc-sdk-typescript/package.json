@@ -34,5 +34,6 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  }
+  },
+  "module": "./src/index.ts"
 }
