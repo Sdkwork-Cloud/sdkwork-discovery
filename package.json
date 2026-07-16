@@ -8,7 +8,7 @@
     "@sdkwork/app-topology": "workspace:*"
   },
   "scripts": {
-    "dev": "node scripts/discovery-dev.mjs --deployment-profile standalone",
+    "stop": "node ../sdkwork-specs/tools/stop-sdkwork-workspace-processes.mjs --workspace .",    "dev": "node scripts/discovery-dev.mjs --deployment-profile standalone",
     "dev:cloud": "node scripts/discovery-dev.mjs --deployment-profile cloud",
     "build": "cargo build --workspace",
     "test": "cargo test --workspace",
