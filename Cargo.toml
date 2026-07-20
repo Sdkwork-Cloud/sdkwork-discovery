@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/sdkwork-api-discovery-standalone-gateway",
     "crates/sdkwork-api-discovery-assembly",
     "crates/sdkwork-discovery-database-host",
     "crates/sdkwork-discovery-contract",

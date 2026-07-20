@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "kind": "sdkwork.component.spec",
+  "component": {
+    "name": "sdkwork-api-discovery-standalone-gateway",
+    "displayName": "SDKWork discovery Standalone API Gateway",
+    "version": "0.1.0",
+    "type": "rust-api-standalone-gateway",
+    "root": "crates/sdkwork-api-discovery-standalone-gateway",
+    "domain": "discovery",
+    "capability": "api-gateway",
+    "surface": "gateway-api",
+    "languages": [
+      "rust"
+    ],
+    "generated": false,
+    "manifests": [
+      "Cargo.toml"
+    ]
+  },
+  "canonicalSpecs": [
+    {
+      "file": "API_ASSEMBLY_SPEC.md",
+      "path": "../../../sdkwork-specs/API_ASSEMBLY_SPEC.md",
+      "purpose": "Host-neutral application API composition."
+    },
+    {
+      "file": "APPLICATION_GATEWAY_SPEC.md",
+      "path": "../../../sdkwork-specs/APPLICATION_GATEWAY_SPEC.md",
+      "purpose": "Standalone gateway process and dependency boundaries."
+    },
+    {
+      "file": "WEB_FRAMEWORK_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_FRAMEWORK_SPEC.md",
+      "purpose": "Process-wide HTTP infrastructure ownership."
+    },
+    {
+      "file": "WEB_BACKEND_SPEC.md",
+      "path": "../../../sdkwork-specs/WEB_BACKEND_SPEC.md",
+      "purpose": "HTTP backend host rules."
+    },
+    {
+      "file": "RUST_CODE_SPEC.md",
+      "path": "../../../sdkwork-specs/RUST_CODE_SPEC.md",
+      "purpose": "Rust host implementation rules."
+    },
+    {
+      "file": "APP_RUNTIME_TOPOLOGY_SPEC.md",
+      "path": "../../../sdkwork-specs/APP_RUNTIME_TOPOLOGY_SPEC.md",
+      "purpose": "Application ingress and development topology."
+    },
+    {
+      "file": "TEST_SPEC.md",
+      "path": "../../../sdkwork-specs/TEST_SPEC.md",
+      "purpose": "Gateway composition verification."
+    }
+  ],
+  "contracts": {
+    "layerRole": "runtime-gateway",
+    "publicExports": [],
+    "providedPorts": [],
+    "requiredPorts": [
+      {
+        "name": "applicationApiAssembly",
+        "export": "sdkwork-api-assembly"
+      }
+    ],
+    "runtimeEntrypoints": [
+      "src/main.rs"
+    ],
+    "routeManifest": null,
+    "sdkClients": [],
+    "sdkDependencies": [],
+    "dependencyApiExports": [],
+    "dependencyApiSurfaces": [],
+    "events": [],
+    "configKeys": []
+  },
+  "verification": {
+    "commands": [
+      "cargo check -p sdkwork-api-discovery-standalone-gateway"
+    ]
+  }
+}
