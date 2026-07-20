@@ -18,8 +18,8 @@
     "clean": "pnpm exec sdkwork-app clean",
     "format": "cargo fmt --all",
     "format:check": "cargo fmt --all -- --check",
-    "release:package": "node scripts/package-server.mjs package",
-    "release:validate": "node scripts/package-server.mjs validate",
+    "release:package": "pnpm release:package:cloud",
+    "release:validate": "pnpm release:validate:cloud",
     "sdk:generate": "npx --yes @bufbuild/buf generate --template sdks/sdkwork-discovery-rpc-sdk/sdkwork-discovery-rpc-sdk-typescript/buf.gen.yaml proto",
     "topology:validate": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs validate --root . --spec specs/topology.spec.json",
     "topology:matrix": "node ../sdkwork-app-topology/scripts/sdkwork-topology.mjs print-matrix --root . --spec specs/topology.spec.json --profile all",
@@ -59,7 +59,9 @@
     "release:validate:standalone": "pnpm exec sdkwork-app release:validate --deployment-profile standalone",
     "release:validate:cloud": "pnpm exec sdkwork-app release:validate --deployment-profile cloud",
     "api:assembly:materialize": "node ../sdkwork-specs/tools/materialize-api-assembly.mjs --root .",
-    "api:assembly:validate": "node ../sdkwork-specs/tools/validate-api-assembly.mjs --root ."
+    "api:assembly:validate": "node ../sdkwork-specs/tools/validate-api-assembly.mjs --root .",
+    "_sdkwork:release:package": "node scripts/package-server.mjs package",
+    "_sdkwork:release:validate": "node scripts/package-server.mjs validate"
   },
   "exports": {
     ".": {
