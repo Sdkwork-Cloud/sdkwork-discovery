@@ -24,6 +24,7 @@ edition = "2021"
 version = "0.1.0"
 
 [workspace.dependencies]
+sdkwork-api-discovery-assembly = { path = "crates/sdkwork-api-discovery-assembly" }
 async-trait = "0.1"
 axum = { version = "0.8" }
 serde = { version = "1.0", features = ["derive"] }

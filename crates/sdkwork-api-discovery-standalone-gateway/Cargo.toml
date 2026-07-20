@@ -1,9 +1,9 @@
 [package]
 name = "sdkwork-api-discovery-standalone-gateway"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-axum = "0.8"
-tokio = { version = "1.48", features = ["macros", "net", "rt-multi-thread"] }
-sdkwork-api-discovery-assembly = { path = "../sdkwork-api-discovery-assembly" }
+sdkwork-api-discovery-assembly.workspace = true
+sdkwork-web-bootstrap.workspace = true
+tokio.workspace = true
