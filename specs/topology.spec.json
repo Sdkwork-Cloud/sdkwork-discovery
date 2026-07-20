@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-discovery",
   "archetype": "application-http-gateway",
@@ -65,11 +65,8 @@
       "protocols": [
         "http"
       ],
-      "owner": "sdkwork-api-cloud-gateway",
-      "bindEnv": "SDKWORK_API_CLOUD_GATEWAY_BIND",
       "httpUrlEnv": "SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_HTTP_URL",
-      "clientHttpEnv": "VITE_SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_HTTP_URL",
-      "autostartEnv": "SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_AUTOSTART"
+      "clientHttpEnv": "VITE_SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_HTTP_URL"
     }
   },
   "cloudPublicHosts": {
@@ -90,12 +87,6 @@
     "serviceHost": {
       "crate": "sdkwork-discovery-service-host",
       "binary": "sdkwork-discovery-service-host"
-    },
-    "cloudGateway": {
-      "crate": "sdkwork-api-cloud-gateway",
-      "binary": "sdkwork-api-cloud-gateway",
-      "repository": "sdkwork-api-cloud-gateway",
-      "configGlob": "configs/sdkwork-api-cloud-gateway.discovery.{profile}.toml"
     }
   },
   "orchestration": {
@@ -106,7 +97,8 @@
             "id": "application.public-ingress",
             "crate": "sdkwork-discovery-service-host",
             "binary": "sdkwork-discovery-service-host",
-            "required": true
+            "required": true,
+            "role": "api-standalone-gateway"
           }
         ],
         "healthSurfaces": [
@@ -114,16 +106,10 @@
         ]
       },
       "cloud.development": {
-        "processes": [
-          {
-            "id": "application.public-ingress",
-            "crate": "sdkwork-discovery-service-host",
-            "binary": "sdkwork-discovery-service-host",
-            "required": true
-          }
-        ],
+        "processes": [],
         "healthSurfaces": [
-          "application.public-ingress"
+          "application.public-ingress",
+          "platform.api-gateway"
         ]
       },
       "standalone.production": {
@@ -132,7 +118,8 @@
             "id": "application.public-ingress",
             "crate": "sdkwork-discovery-service-host",
             "binary": "sdkwork-discovery-service-host",
-            "required": true
+            "required": true,
+            "role": "api-standalone-gateway"
           }
         ],
         "healthSurfaces": [
@@ -145,7 +132,8 @@
             "id": "application.public-ingress",
             "crate": "sdkwork-discovery-service-host",
             "binary": "sdkwork-discovery-service-host",
-            "required": true
+            "required": true,
+            "role": "api-standalone-gateway"
           }
         ],
         "healthSurfaces": [
@@ -178,10 +166,7 @@
         "outputGlob": "dist/server/sdkwork-discovery-*-linux-x64-server.tar.gz"
       }
     ],
-    "cloudConfigFiles": [
-      "sdkwork-api-cloud-gateway.discovery.development.toml",
-      "sdkwork-api-cloud-gateway.discovery.production.toml"
-    ]
+    "cloudConfigFiles": []
   },
   "scripts": {
     "discoveryDev": "scripts/discovery-dev.mjs",
