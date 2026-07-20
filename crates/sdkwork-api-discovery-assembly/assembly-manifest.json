@@ -1,0 +1,9 @@
+{
+  "kind": "sdkwork.api.assembly",
+  "schemaVersion": 1,
+  "applicationCode": "discovery",
+  "apiMode": "none",
+  "packageName": "sdkwork-api-discovery-assembly",
+  "crateDir": "crates/sdkwork-api-discovery-assembly",
+  "routeCrates": []
+}
