@@ -11,10 +11,25 @@ use crate::model::{
 
 pub(crate) fn validate_env_keys(env: &BTreeMap<String, String>) -> DiscoveryResult<()> {
     for key in env.keys() {
+        if is_retired_database_env_key(key) {
+            return Err(DiscoveryError::InvalidConfig(format!(
+                "retired database env key {key}; use SDKWORK_DATABASE_* as the only database authority"
+            )));
+        }
+
         if is_forbidden_credential_env_key(key) {
             return Err(DiscoveryError::InvalidConfig(format!(
                 "runtime credential env key is forbidden: {key}"
             )));
+        }
+
+        if key.starts_with("SDKWORK_DATABASE_") {
+            if !is_supported_database_env_key(key) {
+                return Err(DiscoveryError::InvalidConfig(format!(
+                    "unsupported database env key: {key}"
+                )));
+            }
+            continue;
         }
 
         if !key.starts_with("SDKWORK_DISCOVERY_") {
@@ -64,32 +79,8 @@ pub(crate) fn apply_env_overlay(
                     DiscoveryError::InvalidConfig(format!("unknown storage provider: {value}"))
                 })?;
             }
-            key if key.starts_with("SDKWORK_DISCOVERY_DATABASE_") => {
+            key if key.starts_with("SDKWORK_DATABASE_") => {
                 apply_database_overlay(config, effective_storage_provider, key, value)?;
-            }
-            key if key.starts_with("SDKWORK_DISCOVERY_STORAGE_POSTGRES_") => {
-                apply_transport_storage_overlay(
-                    config
-                        .storage
-                        .postgres
-                        .get_or_insert_with(default_storage_transport_config),
-                    "postgres",
-                    true,
-                    key,
-                    value,
-                    "SDKWORK_DISCOVERY_STORAGE_POSTGRES_",
-                )?;
-            }
-            key if key.starts_with("SDKWORK_DISCOVERY_STORAGE_SQLITE_") => {
-                apply_file_storage_overlay(
-                    config
-                        .storage
-                        .sqlite
-                        .get_or_insert_with(default_storage_file_config),
-                    key,
-                    value,
-                    "SDKWORK_DISCOVERY_STORAGE_SQLITE_",
-                )?;
             }
             key if key.starts_with("SDKWORK_DISCOVERY_STORAGE_REDIS_") => {
                 apply_transport_storage_overlay(
@@ -278,11 +269,9 @@ pub(crate) fn apply_env_overlay(
 fn validate_storage_provider_database_engine(
     env: &BTreeMap<String, String>,
 ) -> DiscoveryResult<()> {
-    let has_database_overlay = env
-        .keys()
-        .any(|key| key.starts_with("SDKWORK_DISCOVERY_DATABASE_"));
+    let has_database_overlay = env.keys().any(|key| is_supported_database_env_key(key));
     if has_database_overlay
-        && !env.contains_key("SDKWORK_DISCOVERY_DATABASE_ENGINE")
+        && !env.contains_key("SDKWORK_DATABASE_ENGINE")
         && !matches!(
             env.get("SDKWORK_DISCOVERY_STORAGE_PROVIDER")
                 .map(String::as_str),
@@ -290,7 +279,7 @@ fn validate_storage_provider_database_engine(
         )
     {
         return Err(DiscoveryError::InvalidConfig(
-            "database env overlay requires SDKWORK_DISCOVERY_DATABASE_ENGINE or a matching storage provider"
+            "database env overlay requires SDKWORK_DATABASE_ENGINE or a matching storage provider"
                 .to_string(),
         ));
     }
@@ -298,15 +287,14 @@ fn validate_storage_provider_database_engine(
     let Some(storage_provider) = env.get("SDKWORK_DISCOVERY_STORAGE_PROVIDER") else {
         return Ok(());
     };
-    let Some(database_engine) = env.get("SDKWORK_DISCOVERY_DATABASE_ENGINE") else {
+    let Some(database_engine) = env.get("SDKWORK_DATABASE_ENGINE") else {
         return Ok(());
     };
 
     let storage_provider = StorageProvider::parse(storage_provider).ok_or_else(|| {
         DiscoveryError::InvalidConfig(format!("unknown storage provider: {storage_provider}"))
     })?;
-    let database_provider =
-        parse_database_engine("SDKWORK_DISCOVERY_DATABASE_ENGINE", database_engine)?;
+    let database_provider = parse_database_engine("SDKWORK_DATABASE_ENGINE", database_engine)?;
 
     if storage_provider != database_provider {
         return Err(DiscoveryError::InvalidConfig(format!(
@@ -323,8 +311,8 @@ fn effective_storage_provider(
     current: StorageProvider,
     env: &BTreeMap<String, String>,
 ) -> DiscoveryResult<StorageProvider> {
-    if let Some(database_engine) = env.get("SDKWORK_DISCOVERY_DATABASE_ENGINE") {
-        return parse_database_engine("SDKWORK_DISCOVERY_DATABASE_ENGINE", database_engine);
+    if let Some(database_engine) = env.get("SDKWORK_DATABASE_ENGINE") {
+        return parse_database_engine("SDKWORK_DATABASE_ENGINE", database_engine);
     }
 
     if let Some(storage_provider) = env.get("SDKWORK_DISCOVERY_STORAGE_PROVIDER") {
@@ -363,6 +351,32 @@ fn is_forbidden_credential_env_key(key: &str) -> bool {
         || key.contains("SECRET")
         || key.contains("API_KEY")
         || key.contains("PASSWORD")
+}
+
+fn is_retired_database_env_key(key: &str) -> bool {
+    key.starts_with("SDKWORK_DISCOVERY_STORAGE_POSTGRES_")
+        || key.starts_with("SDKWORK_DISCOVERY_STORAGE_SQLITE_")
+        || (key.starts_with("SDKWORK_")
+            && !key.starts_with("SDKWORK_DATABASE_")
+            && key.contains("_DATABASE_"))
+}
+
+fn is_supported_database_env_key(key: &str) -> bool {
+    matches!(
+        key,
+        "SDKWORK_DATABASE_ENGINE"
+            | "SDKWORK_DATABASE_HOST"
+            | "SDKWORK_DATABASE_PORT"
+            | "SDKWORK_DATABASE_NAME"
+            | "SDKWORK_DATABASE_SCHEMA"
+            | "SDKWORK_DATABASE_USERNAME"
+            | "SDKWORK_DATABASE_PASSWORD_FILE"
+            | "SDKWORK_DATABASE_PASSWORD"
+            | "SDKWORK_DATABASE_SSL_MODE"
+            | "SDKWORK_DATABASE_MAX_CONNECTIONS"
+            | "SDKWORK_DATABASE_ACQUIRE_TIMEOUT"
+            | "SDKWORK_DATABASE_FILE"
+    )
 }
 
 fn apply_runtime_identity_overlay(
@@ -471,44 +485,15 @@ fn apply_transport_storage_overlay(
     Ok(())
 }
 
-fn apply_file_storage_overlay(
-    storage: &mut StorageFileConfig,
-    key: &str,
-    value: &str,
-    prefix: &str,
-) -> DiscoveryResult<()> {
-    let field = key.strip_prefix(prefix).ok_or_else(|| {
-        DiscoveryError::InvalidConfig(format!("unsupported discovery env key: {key}"))
-    })?;
-
-    match field {
-        "FILE" => {
-            storage.file = value.to_string();
-        }
-        "MAX_CONNECTIONS" => {
-            storage.max_connections = parse_u32_env(key, value)?;
-        }
-        _ => {
-            return Err(DiscoveryError::InvalidConfig(format!(
-                "unsupported discovery env key: {key}"
-            )));
-        }
-    }
-
-    Ok(())
-}
-
 fn apply_database_overlay(
     config: &mut DiscoveryRuntimeConfig,
     effective_provider: StorageProvider,
     key: &str,
     value: &str,
 ) -> DiscoveryResult<()> {
-    let field = key
-        .strip_prefix("SDKWORK_DISCOVERY_DATABASE_")
-        .ok_or_else(|| {
-            DiscoveryError::InvalidConfig(format!("unsupported discovery env key: {key}"))
-        })?;
+    let field = key.strip_prefix("SDKWORK_DATABASE_").ok_or_else(|| {
+        DiscoveryError::InvalidConfig(format!("unsupported database env key: {key}"))
+    })?;
     validate_database_field_for_provider(effective_provider, field, key)?;
 
     match field {
@@ -586,12 +571,12 @@ fn apply_database_overlay(
                     .max_connections = parse_u32_env(key, value)?;
             }
         },
-        "CONNECT_TIMEOUT_MS" => {
+        "ACQUIRE_TIMEOUT" => {
             config
                 .storage
                 .postgres
                 .get_or_insert_with(default_storage_transport_config)
-                .connect_timeout_ms = parse_u64_env(key, value)?;
+                .connect_timeout_ms = parse_timeout_seconds_as_ms(key, value)?;
         }
         "FILE" => {
             config
@@ -618,7 +603,7 @@ fn validate_database_field_for_provider(
     match provider {
         StorageProvider::Postgres => match field {
             "ENGINE" | "HOST" | "PORT" | "NAME" | "SCHEMA" | "USERNAME" | "PASSWORD_FILE"
-            | "PASSWORD" | "SSL_MODE" | "MAX_CONNECTIONS" | "CONNECT_TIMEOUT_MS" => Ok(()),
+            | "PASSWORD" | "SSL_MODE" | "MAX_CONNECTIONS" | "ACQUIRE_TIMEOUT" => Ok(()),
             "FILE" => Err(DiscoveryError::InvalidConfig(format!(
                 "database env key {key} is a sqlite field but the effective database provider is postgres"
             ))),
@@ -629,7 +614,7 @@ fn validate_database_field_for_provider(
         StorageProvider::Sqlite => match field {
             "ENGINE" | "FILE" | "MAX_CONNECTIONS" => Ok(()),
             "HOST" | "PORT" | "NAME" | "SCHEMA" | "USERNAME" | "PASSWORD_FILE" | "PASSWORD"
-            | "SSL_MODE" | "CONNECT_TIMEOUT_MS" => Err(DiscoveryError::InvalidConfig(format!(
+            | "SSL_MODE" | "ACQUIRE_TIMEOUT" => Err(DiscoveryError::InvalidConfig(format!(
                 "database env key {key} is a postgres field but the effective database provider is sqlite"
             ))),
             _ => Err(DiscoveryError::InvalidConfig(format!(
@@ -701,6 +686,12 @@ fn parse_u64_env(key: &str, value: &str) -> DiscoveryResult<u64> {
     value.parse::<u64>().map_err(|error| {
         DiscoveryError::InvalidConfig(format!("invalid integer for {key}: {error}"))
     })
+}
+
+fn parse_timeout_seconds_as_ms(key: &str, value: &str) -> DiscoveryResult<u64> {
+    parse_u64_env(key, value)?
+        .checked_mul(1_000)
+        .ok_or_else(|| DiscoveryError::InvalidConfig(format!("timeout for {key} is too large")))
 }
 
 fn parse_u32_env(key: &str, value: &str) -> DiscoveryResult<u32> {

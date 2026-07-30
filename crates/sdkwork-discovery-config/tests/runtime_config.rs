@@ -320,8 +320,9 @@ provider = "memory"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -399,90 +400,21 @@ fn env_overlay_rejects_retired_grpc_bind_env_keys() {
 }
 
 #[test]
-fn env_overlay_can_build_postgres_storage_from_structured_fields() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
-            "postgres".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_HOST".to_string(),
-            "postgres.internal".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_PORT".to_string(),
-            "5432".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE".to_string(),
-            "sdkwork_discovery".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_USERNAME".to_string(),
-            "sdkwork_discovery".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_PASSWORD_FILE".to_string(),
-            "/run/secrets/sdkwork/discovery/postgres-password".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_TLS_ENABLED".to_string(),
-            "true".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_CONNECT_TIMEOUT_MS".to_string(),
-            "3000".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_MAX_CONNECTIONS".to_string(),
-            "16".to_string(),
-        ),
-    ]);
+fn env_overlay_rejects_retired_provider_database_fields() {
+    for key in [
+        "SDKWORK_DISCOVERY_DATABASE_NAME",
+        "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE",
+        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE",
+        "SDKWORK_CLAW_DATABASE_NAME",
+    ] {
+        let env = BTreeMap::from([(key.to_string(), "retired".to_string())]);
+        let error =
+            DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env)
+                .unwrap_err();
 
-    let config =
-        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
-
-    let postgres = config.storage.postgres.as_ref().unwrap();
-    assert_eq!(config.storage.provider, StorageProvider::Postgres);
-    assert_eq!(postgres.host, "postgres.internal");
-    assert_eq!(postgres.port, 5432);
-    assert_eq!(postgres.database.as_deref(), Some("sdkwork_discovery"));
-    assert_eq!(postgres.username.as_deref(), Some("sdkwork_discovery"));
-    assert_eq!(
-        postgres.credential_source,
-        StorageCredentialSource::PasswordFile(
-            "/run/secrets/sdkwork/discovery/postgres-password".to_string()
-        )
-    );
-    assert!(postgres.tls_enabled);
-    assert_eq!(postgres.connect_timeout_ms, 3000);
-    assert_eq!(postgres.max_connections, 16);
-}
-
-#[test]
-fn env_overlay_can_build_sqlite_storage_from_file_fields() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
-            "sqlite".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_string(),
-            "target/dev/discovery/discovery.sqlite".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_SQLITE_MAX_CONNECTIONS".to_string(),
-            "1".to_string(),
-        ),
-    ]);
-
-    let config =
-        DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env).unwrap();
-
-    let sqlite = config.storage.sqlite.as_ref().unwrap();
-    assert_eq!(config.storage.provider, StorageProvider::Sqlite);
-    assert_eq!(sqlite.file, "target/dev/discovery/discovery.sqlite");
-    assert_eq!(sqlite.max_connections, 1);
+        assert!(error.to_string().contains(key));
+        assert!(error.to_string().contains("SDKWORK_DATABASE_*"));
+    }
 }
 
 #[test]
@@ -594,9 +526,9 @@ provider = "postgres"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
 schema = " "
-username = "sdkwork_discovery"
+username = "sdkwork_ai_dev"
 tls_enabled = false
 connect_timeout_ms = 3000
 max_connections = 16"#,
@@ -638,43 +570,40 @@ max_connections = 32"#,
 fn env_overlay_can_build_postgres_storage_from_canonical_database_fields() {
     let env = BTreeMap::from([
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
+            "SDKWORK_DATABASE_ENGINE".to_string(),
             "postgresql".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_HOST".to_string(),
+            "SDKWORK_DATABASE_HOST".to_string(),
             "postgres.internal".to_string(),
         ),
+        ("SDKWORK_DATABASE_PORT".to_string(), "5432".to_string()),
         (
-            "SDKWORK_DISCOVERY_DATABASE_PORT".to_string(),
-            "5432".to_string(),
+            "SDKWORK_DATABASE_NAME".to_string(),
+            "sdkwork_ai_dev".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_NAME".to_string(),
-            "sdkwork_discovery".to_string(),
+            "SDKWORK_DATABASE_SCHEMA".to_string(),
+            "sdkwork_ai_dev".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_SCHEMA".to_string(),
-            "sdkwork_discovery_runtime".to_string(),
+            "SDKWORK_DATABASE_USERNAME".to_string(),
+            "sdkwork_ai_dev".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_USERNAME".to_string(),
-            "sdkwork_discovery".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_PASSWORD_FILE".to_string(),
+            "SDKWORK_DATABASE_PASSWORD_FILE".to_string(),
             "/run/secrets/sdkwork/discovery/postgres-password".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_SSL_MODE".to_string(),
+            "SDKWORK_DATABASE_SSL_MODE".to_string(),
             "require".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_CONNECT_TIMEOUT_MS".to_string(),
-            "3000".to_string(),
+            "SDKWORK_DATABASE_ACQUIRE_TIMEOUT".to_string(),
+            "3".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "16".to_string(),
         ),
     ]);
@@ -686,12 +615,9 @@ fn env_overlay_can_build_postgres_storage_from_canonical_database_fields() {
     assert_eq!(config.storage.provider, StorageProvider::Postgres);
     assert_eq!(postgres.host, "postgres.internal");
     assert_eq!(postgres.port, 5432);
-    assert_eq!(postgres.database.as_deref(), Some("sdkwork_discovery"));
-    assert_eq!(
-        postgres.schema.as_deref(),
-        Some("sdkwork_discovery_runtime")
-    );
-    assert_eq!(postgres.username.as_deref(), Some("sdkwork_discovery"));
+    assert_eq!(postgres.database.as_deref(), Some("sdkwork_ai_dev"));
+    assert_eq!(postgres.schema.as_deref(), Some("sdkwork_ai_dev"));
+    assert_eq!(postgres.username.as_deref(), Some("sdkwork_ai_dev"));
     assert_eq!(
         postgres.credential_source,
         StorageCredentialSource::PasswordFile(
@@ -706,16 +632,13 @@ fn env_overlay_can_build_postgres_storage_from_canonical_database_fields() {
 #[test]
 fn env_overlay_can_build_sqlite_storage_from_canonical_database_fields() {
     let env = BTreeMap::from([
+        ("SDKWORK_DATABASE_ENGINE".to_string(), "sqlite".to_string()),
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
-            "sqlite".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_FILE".to_string(),
+            "SDKWORK_DATABASE_FILE".to_string(),
             "target/dev/discovery/discovery.sqlite".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "1".to_string(),
         ),
     ]);
@@ -737,11 +660,11 @@ fn env_overlay_can_build_sqlite_database_fields_from_storage_provider_selection(
             "sqlite".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_FILE".to_string(),
+            "SDKWORK_DATABASE_FILE".to_string(),
             "target/dev/discovery/discovery.sqlite".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "1".to_string(),
         ),
     ]);
@@ -759,11 +682,11 @@ fn env_overlay_can_build_sqlite_database_fields_from_storage_provider_selection(
 fn env_overlay_rejects_direct_database_password_values() {
     let env = BTreeMap::from([
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
+            "SDKWORK_DATABASE_ENGINE".to_string(),
             "postgresql".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_PASSWORD".to_string(),
+            "SDKWORK_DATABASE_PASSWORD".to_string(),
             "plain-password".to_string(),
         ),
     ]);
@@ -784,31 +707,28 @@ fn env_overlay_rejects_conflicting_storage_provider_and_database_engine() {
             "sqlite".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
+            "SDKWORK_DATABASE_ENGINE".to_string(),
             "postgresql".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_HOST".to_string(),
+            "SDKWORK_DATABASE_HOST".to_string(),
             "postgres.internal".to_string(),
         ),
+        ("SDKWORK_DATABASE_PORT".to_string(), "5432".to_string()),
         (
-            "SDKWORK_DISCOVERY_DATABASE_PORT".to_string(),
-            "5432".to_string(),
+            "SDKWORK_DATABASE_NAME".to_string(),
+            "sdkwork_ai_dev".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_NAME".to_string(),
-            "sdkwork_discovery".to_string(),
+            "SDKWORK_DATABASE_ACQUIRE_TIMEOUT".to_string(),
+            "3".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_CONNECT_TIMEOUT_MS".to_string(),
-            "3000".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "16".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_FILE".to_string(),
+            "SDKWORK_DATABASE_FILE".to_string(),
             "target/dev/discovery/discovery.sqlite".to_string(),
         ),
     ]);
@@ -826,13 +746,10 @@ fn env_overlay_rejects_conflicting_storage_provider_and_database_engine() {
 fn env_overlay_rejects_database_fields_without_selected_database_provider() {
     let env = BTreeMap::from([
         (
-            "SDKWORK_DISCOVERY_DATABASE_HOST".to_string(),
+            "SDKWORK_DATABASE_HOST".to_string(),
             "postgres.internal".to_string(),
         ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_PORT".to_string(),
-            "5432".to_string(),
-        ),
+        ("SDKWORK_DATABASE_PORT".to_string(), "5432".to_string()),
     ]);
 
     let error = DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env)
@@ -846,20 +763,17 @@ fn env_overlay_rejects_database_fields_without_selected_database_provider() {
 #[test]
 fn env_overlay_rejects_postgres_database_fields_for_sqlite_provider() {
     let env = BTreeMap::from([
+        ("SDKWORK_DATABASE_ENGINE".to_string(), "sqlite".to_string()),
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
-            "sqlite".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_HOST".to_string(),
+            "SDKWORK_DATABASE_HOST".to_string(),
             "postgres.internal".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_FILE".to_string(),
+            "SDKWORK_DATABASE_FILE".to_string(),
             "target/dev/discovery/discovery.sqlite".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "1".to_string(),
         ),
     ]);
@@ -877,31 +791,28 @@ fn env_overlay_rejects_postgres_database_fields_for_sqlite_provider() {
 fn env_overlay_rejects_sqlite_database_file_for_postgres_provider() {
     let env = BTreeMap::from([
         (
-            "SDKWORK_DISCOVERY_DATABASE_ENGINE".to_string(),
+            "SDKWORK_DATABASE_ENGINE".to_string(),
             "postgresql".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_HOST".to_string(),
+            "SDKWORK_DATABASE_HOST".to_string(),
             "postgres.internal".to_string(),
         ),
+        ("SDKWORK_DATABASE_PORT".to_string(), "5432".to_string()),
         (
-            "SDKWORK_DISCOVERY_DATABASE_PORT".to_string(),
-            "5432".to_string(),
+            "SDKWORK_DATABASE_NAME".to_string(),
+            "sdkwork_ai_dev".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_NAME".to_string(),
-            "sdkwork_discovery".to_string(),
+            "SDKWORK_DATABASE_ACQUIRE_TIMEOUT".to_string(),
+            "3".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_CONNECT_TIMEOUT_MS".to_string(),
-            "3000".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_DATABASE_MAX_CONNECTIONS".to_string(),
+            "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
             "16".to_string(),
         ),
         (
-            "SDKWORK_DISCOVERY_DATABASE_FILE".to_string(),
+            "SDKWORK_DATABASE_FILE".to_string(),
             "target/dev/discovery/discovery.sqlite".to_string(),
         ),
     ]);
@@ -913,27 +824,6 @@ fn env_overlay_rejects_sqlite_database_file_for_postgres_provider() {
     assert!(message.contains("database"));
     assert!(message.contains("postgres"));
     assert!(message.contains("sqlite"));
-}
-
-#[test]
-fn env_overlay_rejects_direct_storage_password_values() {
-    let env = BTreeMap::from([
-        (
-            "SDKWORK_DISCOVERY_STORAGE_PROVIDER".to_string(),
-            "postgres".to_string(),
-        ),
-        (
-            "SDKWORK_DISCOVERY_STORAGE_POSTGRES_PASSWORD".to_string(),
-            "plain-password".to_string(),
-        ),
-    ]);
-
-    let error = DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env)
-        .unwrap_err();
-    let message = error.to_string().to_lowercase();
-
-    assert!(message.contains("credential"));
-    assert!(message.contains("password"));
 }
 
 #[test]
@@ -1224,8 +1114,9 @@ watch_role = "primary"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -1250,8 +1141,9 @@ watch_role = "primary"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -1262,7 +1154,7 @@ max_connections = 16"#,
 
     let postgres = config.storage.postgres.as_ref().unwrap();
     assert_eq!(config.storage.provider, StorageProvider::Postgres);
-    assert_eq!(postgres.database.as_deref(), Some("sdkwork_discovery"));
+    assert_eq!(postgres.database.as_deref(), Some("sdkwork_ai_dev"));
     assert_eq!(
         postgres.credential_source,
         StorageCredentialSource::PasswordFile(
@@ -1325,8 +1217,9 @@ apply_initial_schema = true
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -1356,8 +1249,9 @@ apply_initial_schema = true
 [storage.postgres]
 host = "postgres.internal"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = true
 connect_timeout_ms = 3000
@@ -1381,8 +1275,9 @@ provider = "postgres"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password = "plain-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -1455,8 +1350,9 @@ provider = "postgres"
 [storage.postgres]
 host = "postgres.internal"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = true
 connect_timeout_ms = 3000
@@ -1500,8 +1396,9 @@ provider = "postgres"
 [storage.postgres]
 host = "postgres.internal"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = true
 connect_timeout_ms = 3000

@@ -5,7 +5,7 @@ Schema migration evidence for `sdkwork-discovery` durable storage.
 ## Canonical SQL
 
 - PostgreSQL: `database/migrations/postgres/`
-- SQLite: `database/migrations/sqlite/`
+- SQLite: `tests/fixtures/database/sqlite/migrations/`
 
 Apply via sdkwork-database CLI from repository root:
 

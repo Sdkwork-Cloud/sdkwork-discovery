@@ -3,6 +3,4 @@
 pub const ROUTE_CRATE_COUNT: usize = 0;
 
 #[allow(dead_code)]
-pub const ROUTE_CRATE_PACKAGES: &[&str] = &[
-
-];
+pub const ROUTE_CRATE_PACKAGES: &[&str] = &[];

@@ -612,12 +612,19 @@ impl DiscoveryRuntimeConfig {
         match self.storage.provider {
             StorageProvider::Memory => Ok(()),
             StorageProvider::Postgres => {
-                validate_transport("postgres", &self.storage.postgres, true)
+                let postgres = validate_transport("postgres", &self.storage.postgres, true)?;
+                validate_workspace_postgres_identity(&self.runtime.environment, postgres)
             }
             StorageProvider::Sqlite => validate_file_storage("sqlite", &self.storage.sqlite),
-            StorageProvider::Redis => validate_transport("redis", &self.storage.redis, false),
-            StorageProvider::Etcd => validate_transport("etcd", &self.storage.etcd, false),
-            StorageProvider::Consul => validate_transport("consul", &self.storage.consul, false),
+            StorageProvider::Redis => {
+                validate_transport("redis", &self.storage.redis, false).map(|_| ())
+            }
+            StorageProvider::Etcd => {
+                validate_transport("etcd", &self.storage.etcd, false).map(|_| ())
+            }
+            StorageProvider::Consul => {
+                validate_transport("consul", &self.storage.consul, false).map(|_| ())
+            }
         }
     }
 
@@ -713,11 +720,11 @@ fn validate_file_storage(name: &str, config: &Option<StorageFileConfig>) -> Disc
     Ok(())
 }
 
-fn validate_transport(
+fn validate_transport<'a>(
     name: &str,
-    transport: &Option<StorageTransportConfig>,
+    transport: &'a Option<StorageTransportConfig>,
     supports_schema: bool,
-) -> DiscoveryResult<()> {
+) -> DiscoveryResult<&'a StorageTransportConfig> {
     let transport = transport.as_ref().ok_or_else(|| {
         DiscoveryError::InvalidConfig(format!("storage provider {name} requires [storage.{name}]"))
     })?;
@@ -766,8 +773,84 @@ fn validate_transport(
                 "storage provider {name} password_file must not be empty"
             )))
         }
-        _ => Ok(()),
+        _ => Ok(transport),
     }
+}
+
+fn validate_workspace_postgres_identity(
+    environment: &RuntimeEnvironment,
+    postgres: &StorageTransportConfig,
+) -> DiscoveryResult<()> {
+    let database = postgres.database.as_deref().ok_or_else(|| {
+        DiscoveryError::InvalidConfig(
+            "postgres storage requires SDKWork workspace database identity".to_string(),
+        )
+    })?;
+    let schema = postgres.schema.as_deref().ok_or_else(|| {
+        DiscoveryError::InvalidConfig(
+            "postgres storage requires a schema equal to the workspace database".to_string(),
+        )
+    })?;
+    let username = postgres.username.as_deref().ok_or_else(|| {
+        DiscoveryError::InvalidConfig(
+            "postgres storage requires SDKWork workspace username".to_string(),
+        )
+    })?;
+
+    let (database_is_valid, expected_database, expected_username) = match environment {
+        RuntimeEnvironment::Development => (
+            database == "sdkwork_ai_dev",
+            "sdkwork_ai_dev",
+            "sdkwork_ai_dev",
+        ),
+        RuntimeEnvironment::Test => (
+            is_workspace_test_database(database),
+            "sdkwork_ai_test or sdkwork_ai_test_<run_id>",
+            "sdkwork_ai_test",
+        ),
+        RuntimeEnvironment::Staging => (
+            database == "sdkwork_ai_staging",
+            "sdkwork_ai_staging",
+            "sdkwork_ai_staging",
+        ),
+        RuntimeEnvironment::Production => (
+            database == "sdkwork_ai_prod",
+            "sdkwork_ai_prod",
+            "sdkwork_ai_prod",
+        ),
+    };
+
+    if !database_is_valid {
+        return Err(DiscoveryError::InvalidConfig(format!(
+            "postgres database {database:?} is not the canonical workspace identity for {}; expected {expected_database}",
+            environment.as_str()
+        )));
+    }
+    if schema != database {
+        return Err(DiscoveryError::InvalidConfig(format!(
+            "postgres schema must equal workspace database {database:?}, got {schema:?}"
+        )));
+    }
+    if username != expected_username {
+        return Err(DiscoveryError::InvalidConfig(format!(
+            "postgres username {username:?} is not canonical for {}; expected {expected_username}",
+            environment.as_str()
+        )));
+    }
+
+    Ok(())
+}
+
+fn is_workspace_test_database(value: &str) -> bool {
+    value == "sdkwork_ai_test"
+        || value
+            .strip_prefix("sdkwork_ai_test_")
+            .is_some_and(|suffix| {
+                !suffix.is_empty()
+                    && suffix.bytes().all(|byte| {
+                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
+                    })
+            })
 }
 
 fn default_event_gc_interval_ms() -> u64 {

@@ -28,7 +28,17 @@ impl DiscoveryServiceHostRuntime {
                 continue;
             }
 
-            if key.starts_with("SDKWORK_DISCOVERY_") {
+            if is_retired_database_env_key(key) {
+                return Err(DiscoveryError::InvalidConfig(format!(
+                    "retired database env key {key}; use SDKWORK_DATABASE_* as the only database authority"
+                )));
+            }
+
+            if key.starts_with("SDKWORK_DATABASE_ADMIN_") {
+                continue;
+            }
+
+            if key.starts_with("SDKWORK_DISCOVERY_") || key.starts_with("SDKWORK_DATABASE_") {
                 env_overlay.insert(key.clone(), value.clone());
             }
         }
@@ -99,4 +109,12 @@ impl DiscoveryServiceHostRuntime {
     pub async fn serve_grpc(mut self) -> DiscoveryResult<DiscoveryServiceHostGrpcServer> {
         self.bootstrap.serve_grpc().await
     }
+}
+
+fn is_retired_database_env_key(key: &str) -> bool {
+    key.starts_with("SDKWORK_DISCOVERY_STORAGE_POSTGRES_")
+        || key.starts_with("SDKWORK_DISCOVERY_STORAGE_SQLITE_")
+        || (key.starts_with("SDKWORK_")
+            && !key.starts_with("SDKWORK_DATABASE_")
+            && key.contains("_DATABASE_"))
 }

@@ -44,9 +44,9 @@ apply_initial_schema = false
 [storage.postgres]
 host = "postgres.internal"
 port = 5432
-database = "sdkwork_discovery"
-schema = "public"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_prod"
+schema = "sdkwork_ai_prod"
+username = "sdkwork_ai_prod"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = true
 connect_timeout_ms = 3000

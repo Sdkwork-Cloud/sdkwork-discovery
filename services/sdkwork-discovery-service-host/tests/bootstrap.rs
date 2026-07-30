@@ -35,7 +35,10 @@ fn parse_env_example(input: &str) -> BTreeMap<String, String> {
 
             let (key, value) = line.split_once('=')?;
             let key = key.trim();
-            if !key.starts_with("SDKWORK_DISCOVERY_") {
+            if !key.starts_with("SDKWORK_DISCOVERY_")
+                && (!key.starts_with("SDKWORK_DATABASE_")
+                    || key.starts_with("SDKWORK_DATABASE_ADMIN_"))
+            {
                 return None;
             }
             Some((key.to_string(), value.trim().to_string()))
@@ -136,11 +139,11 @@ fn service_host_bootstrap_accepts_checked_in_postgres_env_example() {
 
     assert_eq!(bootstrap.storage_provider_name(), "postgres");
     assert_eq!(postgres.host, "127.0.0.1");
-    assert_eq!(postgres.database.as_deref(), Some("sdkwork_discovery"));
-    assert_eq!(postgres.schema.as_deref(), Some("public"));
+    assert_eq!(postgres.database.as_deref(), Some("sdkwork_ai_dev"));
+    assert_eq!(postgres.schema.as_deref(), Some("sdkwork_ai_dev"));
     assert_eq!(postgres.connect_timeout_ms, 3000);
     assert_eq!(postgres.max_connections, 16);
-    assert!(summary.contains("schema=public"));
+    assert!(summary.contains("schema=sdkwork_ai_dev"));
     assert!(!summary.to_ascii_lowercase().contains("password"));
     assert!(!summary.to_ascii_lowercase().contains("secret"));
 }
@@ -261,8 +264,9 @@ provider = "postgres"
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -275,7 +279,7 @@ max_connections = 16"#,
 
     assert_eq!(bootstrap.storage_provider_name(), "postgres");
     assert!(summary.contains("postgres host=127.0.0.1"));
-    assert!(summary.contains("database=sdkwork_discovery"));
+    assert!(summary.contains("database=sdkwork_ai_dev"));
     assert!(!summary.to_ascii_lowercase().contains("password"));
     assert!(!summary.to_ascii_lowercase().contains("secret"));
 }
@@ -335,8 +339,9 @@ apply_initial_schema = true
 [storage.postgres]
 host = "127.0.0.1"
 port = 5432
-database = "sdkwork_discovery"
-username = "sdkwork_discovery"
+database = "sdkwork_ai_dev"
+schema = "sdkwork_ai_dev"
+username = "sdkwork_ai_dev"
 password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 tls_enabled = false
 connect_timeout_ms = 3000
@@ -1001,6 +1006,48 @@ fn runtime_env_collection_separates_config_file_from_safe_overlay() {
 }
 
 #[test]
+fn runtime_env_collection_includes_canonical_database_keys_and_ignores_admin_keys() {
+    let env = BTreeMap::from([
+        (
+            "SDKWORK_DATABASE_NAME".to_string(),
+            "sdkwork_ai_dev".to_string(),
+        ),
+        (
+            "SDKWORK_DATABASE_ADMIN_USERNAME".to_string(),
+            "postgres".to_string(),
+        ),
+    ]);
+
+    let options = DiscoveryServiceHostRuntime::options_from_env(&env).unwrap();
+
+    assert_eq!(
+        options
+            .env_overlay
+            .get("SDKWORK_DATABASE_NAME")
+            .map(String::as_str),
+        Some("sdkwork_ai_dev")
+    );
+    assert!(!options
+        .env_overlay
+        .contains_key("SDKWORK_DATABASE_ADMIN_USERNAME"));
+}
+
+#[test]
+fn runtime_env_collection_rejects_retired_database_aliases() {
+    for key in [
+        "SDKWORK_CLAW_DATABASE_NAME",
+        "SDKWORK_DISCOVERY_DATABASE_NAME",
+        "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE",
+    ] {
+        let env = BTreeMap::from([(key.to_string(), "sdkwork_ai_dev".to_string())]);
+        let error = DiscoveryServiceHostRuntime::options_from_env(&env).unwrap_err();
+
+        assert!(error.to_string().contains(key));
+        assert!(error.to_string().contains("SDKWORK_DATABASE_*"));
+    }
+}
+
+#[test]
 fn runtime_summary_contains_only_safe_operational_fields() {
     let env = BTreeMap::from([(
         "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),
@@ -1034,8 +1081,8 @@ fn runtime_summary_includes_storage_safe_summary_without_secret_material() {
 
     assert!(summary.contains("provider=postgres"));
     assert!(summary.contains("storage=\"postgres host=127.0.0.1"));
-    assert!(summary.contains("database=sdkwork_discovery"));
-    assert!(summary.contains("schema=public"));
+    assert!(summary.contains("database=sdkwork_ai_dev"));
+    assert!(summary.contains("schema=sdkwork_ai_dev"));
     assert!(!summary.to_ascii_lowercase().contains("password"));
     assert!(!summary.to_ascii_lowercase().contains("secret"));
     assert!(!summary.to_ascii_lowercase().contains("token"));
@@ -1132,11 +1179,11 @@ fn sqlite_runtime_env(database_file: &std::path::Path, grpc_port: u16) -> BTreeM
         "sqlite".to_string(),
     );
     env.insert(
-        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_string(),
+        "SDKWORK_DATABASE_FILE".to_string(),
         database_file.to_string_lossy().into_owned(),
     );
     env.insert(
-        "SDKWORK_DISCOVERY_STORAGE_SQLITE_MAX_CONNECTIONS".to_string(),
+        "SDKWORK_DATABASE_MAX_CONNECTIONS".to_string(),
         "2".to_string(),
     );
     env.insert(

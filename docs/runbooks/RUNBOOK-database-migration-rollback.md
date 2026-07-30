@@ -15,7 +15,7 @@ Recover from a failed or incompatible Discovery database migration without silen
 Canonical migration SQL:
 
 - `database/migrations/postgres/`
-- `database/migrations/sqlite/`
+- `tests/fixtures/database/sqlite/migrations/`
 
 Apply and inspect through sdkwork-database CLI from the application root:
 

@@ -50,8 +50,8 @@ watch_role = "primary"
 
 # Durable storage providers are configured with structured fields and secret-file references.
 # PostgreSQL and SQLite can also be supplied through the canonical
-# SDKWORK_DISCOVERY_DATABASE_* env overlay. Direct password env values are rejected;
-# use SDKWORK_DISCOVERY_DATABASE_PASSWORD_FILE or provider-specific *_PASSWORD_FILE keys.
+# SDKWORK_DATABASE_* env overlay. Direct password env values are rejected;
+# use SDKWORK_DATABASE_PASSWORD_FILE.
 # PostgreSQL durable adapter support is available for production registry, config, and watch storage.
 # Apply database/migrations/postgres through sdkwork-database (pnpm db:migrate) or your deployment
 # pipeline before serving traffic with provider = "postgres".
@@ -59,9 +59,9 @@ watch_role = "primary"
 # [storage.postgres]
 # host = "postgres.internal"
 # port = 5432
-# database = "sdkwork_discovery"
-# schema = "public"
-# username = "sdkwork_discovery"
+# database = "sdkwork_ai_dev"
+# schema = "sdkwork_ai_dev"
+# username = "sdkwork_ai_dev"
 # password_file = "/run/secrets/sdkwork/discovery/postgres-password"
 # tls_enabled = true
 # connect_timeout_ms = 3000
@@ -69,7 +69,7 @@ watch_role = "primary"
 #
 # SQLite durable adapter support is available for local/test/small single-node deployments.
 # Production server/container config rejects provider = "sqlite".
-# Apply database/migrations/sqlite through sdkwork-database (pnpm db:migrate) before serving traffic,
+# Apply tests/fixtures/database/sqlite/migrations through sdkwork-database (pnpm db:migrate) before serving traffic,
 # or set apply_initial_schema = true only outside production.
 #
 # [storage.sqlite]
