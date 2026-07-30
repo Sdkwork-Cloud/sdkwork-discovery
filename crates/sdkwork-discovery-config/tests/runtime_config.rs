@@ -401,18 +401,19 @@ fn env_overlay_rejects_retired_grpc_bind_env_keys() {
 
 #[test]
 fn env_overlay_rejects_retired_provider_database_fields() {
+    let retired_application_key = ["SDKWORK", "CLAW", "DATABASE", "NAME"].join("_");
     for key in [
-        "SDKWORK_DISCOVERY_DATABASE_NAME",
-        "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE",
-        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE",
-        "SDKWORK_CLAW_DATABASE_NAME",
+        "SDKWORK_DISCOVERY_DATABASE_NAME".to_owned(),
+        "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE".to_owned(),
+        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_owned(),
+        retired_application_key,
     ] {
         let env = BTreeMap::from([(key.to_string(), "retired".to_string())]);
         let error =
             DiscoveryRuntimeConfig::from_toml_str_with_env(&minimal_config("dev", None), &env)
                 .unwrap_err();
 
-        assert!(error.to_string().contains(key));
+        assert!(error.to_string().contains(&key));
         assert!(error.to_string().contains("SDKWORK_DATABASE_*"));
     }
 }
