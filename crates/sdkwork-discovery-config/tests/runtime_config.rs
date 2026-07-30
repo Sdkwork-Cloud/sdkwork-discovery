@@ -401,12 +401,11 @@ fn env_overlay_rejects_retired_grpc_bind_env_keys() {
 
 #[test]
 fn env_overlay_rejects_retired_provider_database_fields() {
-    let retired_application_key = ["SDKWORK", "CLAW", "DATABASE", "NAME"].join("_");
     for key in [
-        "SDKWORK_DISCOVERY_DATABASE_NAME".to_owned(),
-        "SDKWORK_DISCOVERY_STORAGE_POSTGRES_DATABASE".to_owned(),
-        "SDKWORK_DISCOVERY_STORAGE_SQLITE_FILE".to_owned(),
-        retired_application_key,
+        ["SDKWORK", "DISCOVERY", "DATABASE", "NAME"].join("_"),
+        ["SDKWORK", "DISCOVERY", "STORAGE", "POSTGRES", "DATABASE"].join("_"),
+        ["SDKWORK", "DISCOVERY", "STORAGE", "SQLITE", "FILE"].join("_"),
+        ["SDKWORK", "CLAW", "DATABASE", "NAME"].join("_"),
     ] {
         let env = BTreeMap::from([(key.to_string(), "retired".to_string())]);
         let error =
