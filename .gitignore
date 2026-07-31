@@ -41,3 +41,13 @@ Thumbs.db
 **/.sdkwork/sdkwork-generator-changes.json
 **/.sdkwork/sdkwork-generator-manifest.json
 **/.sdkwork/sdkwork-generator-report.json
+
+# SDKWork local-only and generated artifacts
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/build/
+*.log
+.DS_Store
+Thumbs.db

@@ -2,6 +2,7 @@
   "schemaVersion": 5,
   "kind": "sdkwork.app.topology",
   "appId": "sdkwork-discovery",
+  "applicationCode": "discovery",
   "archetype": "application-http-gateway",
   "archetypeNotes": "Nearest shared topology template for unified-process ingress; discovery surfaces are gRPC-only (application.public-ingress, operations.control-ingress), not HTTP. sdkwork-web-framework is not required because this app owns no HTTP *-api surfaces.",
   "profileRoot": "configs/topology",
@@ -79,9 +80,6 @@
     "platform.api-gateway": {
       "httpHost": "api.sdkwork.com"
     }
-  },
-  "database": {
-    "appPrefix": "SDKWORK_DISCOVERY"
   },
   "components": {
     "serviceHost": {
