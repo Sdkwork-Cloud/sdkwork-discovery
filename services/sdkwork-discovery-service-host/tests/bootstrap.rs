@@ -1035,7 +1035,7 @@ fn runtime_env_collection_includes_canonical_database_keys_and_ignores_admin_key
 #[test]
 fn runtime_env_collection_rejects_retired_database_aliases() {
     for key in [
-        ["SDKWORK", "CLAW", "DATABASE", "NAME"].join("_"),
+        ["SDKWORK", "CLOUD", "DATABASE", "NAME"].join("_"),
         ["SDKWORK", "DISCOVERY", "DATABASE", "NAME"].join("_"),
         ["SDKWORK", "DISCOVERY", "STORAGE", "POSTGRES", "DATABASE"].join("_"),
     ] {

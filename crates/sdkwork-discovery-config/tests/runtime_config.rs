@@ -405,7 +405,7 @@ fn env_overlay_rejects_retired_provider_database_fields() {
         ["SDKWORK", "DISCOVERY", "DATABASE", "NAME"].join("_"),
         ["SDKWORK", "DISCOVERY", "STORAGE", "POSTGRES", "DATABASE"].join("_"),
         ["SDKWORK", "DISCOVERY", "STORAGE", "SQLITE", "FILE"].join("_"),
-        ["SDKWORK", "CLAW", "DATABASE", "NAME"].join("_"),
+        ["SDKWORK", "CLOUD", "DATABASE", "NAME"].join("_"),
     ] {
         let env = BTreeMap::from([(key.to_string(), "retired".to_string())]);
         let error =
