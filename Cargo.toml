@@ -10,7 +10,6 @@ members = [
     "crates/sdkwork-discovery-storage-memory",
     "crates/sdkwork-discovery-storage-postgres",
     "crates/sdkwork-discovery-storage-redis",
-    "crates/sdkwork-discovery-storage-sqlite",
     "crates/sdkwork-discovery-core",
     "crates/sdkwork-discovery-rpc-proto",
     "crates/sdkwork-discovery-rpc",
@@ -61,7 +60,6 @@ sdkwork-discovery-storage-contract = { path = "crates/sdkwork-discovery-storage-
 sdkwork-discovery-storage-memory = { path = "crates/sdkwork-discovery-storage-memory" }
 sdkwork-discovery-storage-postgres = { path = "crates/sdkwork-discovery-storage-postgres" }
 sdkwork-discovery-storage-redis = { path = "crates/sdkwork-discovery-storage-redis" }
-sdkwork-discovery-storage-sqlite = { path = "crates/sdkwork-discovery-storage-sqlite" }
 sdkwork-database-config = { path = "../sdkwork-database/crates/sdkwork-database-config", package = "sdkwork-database-config" }
 sdkwork-database-lifecycle = { path = "../sdkwork-database/crates/sdkwork-database-lifecycle", package = "sdkwork-database-lifecycle" }
 sdkwork-database-spi = { path = "../sdkwork-database/crates/sdkwork-database-spi", package = "sdkwork-database-spi" }

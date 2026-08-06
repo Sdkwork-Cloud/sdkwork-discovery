@@ -13,7 +13,6 @@ use sdkwork_discovery_storage_contract::{ConfigStore, RegistryStore, WatchEventS
 use sdkwork_discovery_storage_memory::MemoryDiscoveryStore;
 use sdkwork_discovery_storage_postgres::PostgresDiscoveryStore;
 use sdkwork_discovery_storage_redis::RedisDiscoveryStore;
-use sdkwork_discovery_storage_sqlite::SqliteDiscoveryStore;
 
 pub struct DiscoveryServiceHostBootstrap {
     config: DiscoveryRuntimeConfig,
@@ -32,10 +31,6 @@ enum DiscoveryRuntimeStorage {
     },
     Postgres {
         control_plane: Option<DiscoveryControlPlane<PostgresDiscoveryStore>>,
-        safe_summary: String,
-    },
-    Sqlite {
-        control_plane: Option<DiscoveryControlPlane<SqliteDiscoveryStore>>,
         safe_summary: String,
     },
     Redis {
@@ -70,9 +65,6 @@ impl DiscoveryServiceHostBootstrap {
         match &self.runtime_storage {
             DiscoveryRuntimeStorage::Memory { .. } => "memory".to_string(),
             DiscoveryRuntimeStorage::Postgres { safe_summary, .. } => safe_summary.clone(),
-            DiscoveryRuntimeStorage::Sqlite { safe_summary, .. } => safe_summary.clone(),
-            DiscoveryRuntimeStorage::Redis { safe_summary, .. } => safe_summary.clone(),
-        }
     }
 
     pub fn internal_rpc_server_config(
@@ -112,17 +104,6 @@ impl DiscoveryServiceHostBootstrap {
             } => Err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
                 "postgres control plane has already been moved into the gRPC runtime".to_string(),
             )),
-            DiscoveryRuntimeStorage::Sqlite {
-                control_plane: Some(control_plane),
-                ..
-            } => control_plane.store().apply_initial_schema().await,
-            DiscoveryRuntimeStorage::Sqlite {
-                control_plane: None,
-                ..
-            } => Err(sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
-                "sqlite control plane has already been moved into the gRPC runtime".to_string(),
-            )),
-            DiscoveryRuntimeStorage::Redis { .. } => Ok(()),
         }
     }
 
@@ -156,16 +137,6 @@ impl DiscoveryServiceHostBootstrap {
                 let control_plane = control_plane.take().ok_or_else(|| {
                     sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
                         "postgres control plane has already been moved into the gRPC runtime"
-                            .to_string(),
-                    )
-                })?;
-                let runtime = DiscoveryRpcRuntime::with_config(control_plane, runtime_config);
-                serve_runtime(internal_config, backend_config, runtime).await
-            }
-            DiscoveryRuntimeStorage::Sqlite { control_plane, .. } => {
-                let control_plane = control_plane.take().ok_or_else(|| {
-                    sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
-                        "sqlite control plane has already been moved into the gRPC runtime"
                             .to_string(),
                     )
                 })?;
@@ -225,23 +196,6 @@ fn build_runtime_storage(
             let store = PostgresDiscoveryStore::new_lazy(transport)?;
             let safe_summary = store.safe_summary();
             Ok(DiscoveryRuntimeStorage::Postgres {
-                control_plane: Some(DiscoveryControlPlane::new(
-                    store,
-                    config_policy(config),
-                    registry_policy(config),
-                )),
-                safe_summary,
-            })
-        }
-        StorageProvider::Sqlite => {
-            let sqlite = config.storage.sqlite.as_ref().ok_or_else(|| {
-                sdkwork_discovery_contract::DiscoveryError::InvalidConfig(
-                    "storage provider sqlite requires [storage.sqlite]".to_string(),
-                )
-            })?;
-            let store = SqliteDiscoveryStore::new_lazy(&sqlite.file, sqlite.max_connections)?;
-            let safe_summary = store.safe_summary().to_string();
-            Ok(DiscoveryRuntimeStorage::Sqlite {
                 control_plane: Some(DiscoveryControlPlane::new(
                     store,
                     config_policy(config),
