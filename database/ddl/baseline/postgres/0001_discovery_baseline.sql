@@ -165,49 +165,9 @@ ALTER TABLE discovery_service_instance
     ADD COLUMN IF NOT EXISTS health_check_state_json JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- folded migration: migrations/postgres/0001_initial_discovery_schema.up.sql
-CREATE TABLE IF NOT EXISTS discovery_revision_counter (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    namespace VARCHAR(128) NOT NULL,
-    environment VARCHAR(64) NOT NULL,
-    current_revision BIGINT NOT NULL DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_revision_counter_scope UNIQUE (namespace, environment),
-    CONSTRAINT uk_discovery_revision_counter_uuid UNIQUE (uuid)
-);
 
-CREATE TABLE IF NOT EXISTS discovery_service_instance (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    namespace VARCHAR(128) NOT NULL,
-    environment VARCHAR(64) NOT NULL,
-    service_name VARCHAR(256) NOT NULL,
-    instance_id VARCHAR(256) NOT NULL,
-    endpoint TEXT NOT NULL,
-    protocol VARCHAR(32) NOT NULL,
-    service_version VARCHAR(128) NOT NULL,
-    region VARCHAR(128) NOT NULL,
-    zone VARCHAR(128) NOT NULL,
-    weight INTEGER NOT NULL,
-    priority INTEGER NOT NULL,
-    status VARCHAR(32) NOT NULL,
-    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-    lease_id VARCHAR(128) NOT NULL,
-    expires_at_ms BIGINT NOT NULL,
-    revision BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_service_instance_identity UNIQUE (namespace, environment, service_name, instance_id),
-    CONSTRAINT uk_discovery_service_instance_lease UNIQUE (lease_id),
-    CONSTRAINT uk_discovery_service_instance_uuid UNIQUE (uuid)
-);
+
+
 
 CREATE INDEX IF NOT EXISTS idx_discovery_service_instance_discover
     ON discovery_service_instance (namespace, environment, service_name, protocol, status, expires_at_ms);
@@ -216,101 +176,22 @@ CREATE INDEX IF NOT EXISTS idx_discovery_service_instance_expiry
     ON discovery_service_instance (expires_at_ms, namespace, environment, service_name, instance_id)
     WHERE deleted_at IS NULL;
 
-CREATE TABLE IF NOT EXISTS discovery_config_draft (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    draft_id VARCHAR(128) NOT NULL,
-    namespace VARCHAR(128) NOT NULL,
-    environment VARCHAR(64) NOT NULL,
-    config_group VARCHAR(256) NOT NULL,
-    config_key VARCHAR(256) NOT NULL,
-    config_format VARCHAR(32) NOT NULL,
-    config_value TEXT NOT NULL,
-    scope_kind VARCHAR(32) NOT NULL,
-    scope_application VARCHAR(256),
-    scope_service_name VARCHAR(256),
-    created_by VARCHAR(256) NOT NULL,
-    content_hash VARCHAR(128) NOT NULL,
-    published BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_config_draft_id UNIQUE (draft_id),
-    CONSTRAINT uk_discovery_config_draft_uuid UNIQUE (uuid)
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_discovery_config_draft_scope
     ON discovery_config_draft (namespace, environment, config_group, config_key, scope_kind);
 
-CREATE TABLE IF NOT EXISTS discovery_config_release (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    release_id VARCHAR(128) NOT NULL,
-    draft_id VARCHAR(128) NOT NULL,
-    namespace VARCHAR(128) NOT NULL,
-    environment VARCHAR(64) NOT NULL,
-    config_group VARCHAR(256) NOT NULL,
-    config_key VARCHAR(256) NOT NULL,
-    config_format VARCHAR(32) NOT NULL,
-    config_value TEXT NOT NULL,
-    scope_kind VARCHAR(32) NOT NULL,
-    scope_application VARCHAR(256),
-    scope_service_name VARCHAR(256),
-    content_hash VARCHAR(128) NOT NULL,
-    published_by VARCHAR(256) NOT NULL,
-    published_at_ms BIGINT NOT NULL,
-    revision BIGINT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_config_release_id UNIQUE (release_id),
-    CONSTRAINT uk_discovery_config_release_uuid UNIQUE (uuid)
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_discovery_config_release_effective
     ON discovery_config_release (namespace, environment, config_group, config_key, scope_kind, revision);
 
-CREATE TABLE IF NOT EXISTS discovery_idempotency_record (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    operation_id VARCHAR(256) NOT NULL,
-    idempotency_key VARCHAR(256) NOT NULL,
-    request_hash VARCHAR(256) NOT NULL,
-    resource_kind VARCHAR(64) NOT NULL,
-    resource_id VARCHAR(256) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_idempotency_record_identity UNIQUE (operation_id, idempotency_key),
-    CONSTRAINT uk_discovery_idempotency_record_uuid UNIQUE (uuid)
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_discovery_idempotency_record_resource
     ON discovery_idempotency_record (resource_kind, resource_id);
 
-CREATE TABLE IF NOT EXISTS discovery_watch_event (
-    id BIGSERIAL NOT NULL,
-    uuid VARCHAR(64) NOT NULL,
-    revision BIGINT NOT NULL,
-    namespace VARCHAR(128) NOT NULL,
-    environment VARCHAR(64) NOT NULL,
-    event_kind VARCHAR(64) NOT NULL,
-    resource_id VARCHAR(256) NOT NULL,
-    config_application VARCHAR(256),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    version BIGINT NOT NULL DEFAULT 0,
-    deleted_at TIMESTAMPTZ,
-    PRIMARY KEY (id),
-    CONSTRAINT uk_discovery_watch_event_scope_revision UNIQUE (namespace, environment, revision),
-    CONSTRAINT uk_discovery_watch_event_uuid UNIQUE (uuid)
-);
+
 
 CREATE INDEX IF NOT EXISTS idx_discovery_watch_event_scope_revision
     ON discovery_watch_event (namespace, environment, revision);
