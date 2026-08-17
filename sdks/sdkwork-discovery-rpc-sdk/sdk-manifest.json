@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "sdkFamily": "sdkwork-discovery-rpc-sdk",
+  "sdkName": "sdkwork-discovery-rpc-sdk",
+  "packageName": "@sdkwork/discovery-rpc-sdk",
+  "transportPackageName": "sdkwork-discovery-rpc-sdk-generated-typescript",
+  "typescript": {
+    "composedRoot": "sdkwork-discovery-rpc-sdk-typescript",
+    "composedEntry": "sdkwork-discovery-rpc-sdk-typescript/src/index.ts",
+    "transportRoot": "sdkwork-discovery-rpc-sdk-typescript/generated/server-openapi",
+    "transportEntry": "sdkwork-discovery-rpc-sdk-typescript/generated/server-openapi/src/index.ts"
+  },
+  "sdkOwner": "sdkwork-discovery",
+  "apiAuthority": "sdkwork-discovery-rpc-api",
+  "sdkDependencies": []
+}
