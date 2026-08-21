@@ -21,7 +21,7 @@ pnpm.cmd verify
 pnpm.cmd dev
 ```
 
-Topology-aware local dev loads `configs/topology/` profiles via `@sdkwork/app-topology` (`pnpm dev`, `pnpm dev:cloud`). See `docs/topology-standard.md`.
+Topology-aware local dev loads `etc/topology/` profiles via `@sdkwork/app-topology` (`pnpm dev`, `pnpm dev:cloud`). See `docs/topology-standard.md`.
 
 `pnpm.cmd` should be used on Windows if PowerShell blocks `pnpm.ps1`.
 
@@ -39,8 +39,7 @@ The default example binds **application.public-ingress** to `127.0.0.1:19090` an
 
 The safe process env overlay supports lifecycle/runtime fields, topology surface bind keys, storage selection and storage connection fields, config/watch controls, and RPC security toggles:
 
-- `SDKWORK_DISCOVERY_ENVIRONMENT`, `SDKWORK_DISCOVERY_CONFIG_PROFILE`, `SDKWORK_DISCOVERY_RUNTIME_TARGET`
-- `SDKWORK_DISCOVERY_SERVICE_LAYOUT`, `SDKWORK_DISCOVERY_PROFILE_ID`
+- `SDKWORK_DISCOVERY_ENVIRONMENT`, `SDKWORK_DISCOVERY_CONFIG_PROFILE`, `SDKWORK_DISCOVERY_RUNTIME_TARGET`, `SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE`, `SDKWORK_DISCOVERY_PROFILE_ID`
 - `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND`, `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_GRPC_URL`, `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_INGRESS_BIND`, `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_GRPC_URL`, `SDKWORK_DISCOVERY_RPC_DEFAULT_DEADLINE_MS`
 - `SDKWORK_DISCOVERY_STORAGE_PROVIDER`, `SDKWORK_DISCOVERY_CONFIG_REGISTRY_ENABLED`
 - Canonical PostgreSQL/SQLite database overlays: `SDKWORK_DATABASE_ENGINE`, `SDKWORK_DATABASE_HOST`, `SDKWORK_DATABASE_PORT`, `SDKWORK_DATABASE_NAME`, `SDKWORK_DATABASE_SCHEMA`, `SDKWORK_DATABASE_USERNAME`, `SDKWORK_DATABASE_PASSWORD_FILE`, `SDKWORK_DATABASE_SSL_MODE`, `SDKWORK_DATABASE_ACQUIRE_TIMEOUT`, `SDKWORK_DATABASE_MAX_CONNECTIONS`, `SDKWORK_DATABASE_FILE`

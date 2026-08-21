@@ -30,7 +30,6 @@ function cargoCommand() {
 function parseArgs(argv) {
   const settings = {
     deploymentProfile: 'standalone',
-    serviceLayout: 'unified-process',
     dryRun: false,
     help: false,
   };
@@ -52,13 +51,13 @@ function parseArgs(argv) {
       );
     }
     if (arg === '--service-layout') {
-      settings.serviceLayout = argv[index + 1] ?? settings.serviceLayout;
-      index += 1;
-      continue;
+      throw new Error(
+        '--service-layout is retired; use --deployment-profile standalone|cloud',
+      );
     }
     if (arg === '--topology') {
       throw new Error(
-        '--topology is retired; use --deployment-profile and --service-layout',
+        '--topology is retired; use --deployment-profile standalone|cloud',
       );
     }
     if (arg === '--dry-run') {
@@ -72,11 +71,10 @@ function parseArgs(argv) {
 function printHelp() {
   console.log(`Usage: node scripts/discovery-dev.mjs [options]
 
-Topology-aware Discovery dev entry. Loads configs/topology profile env via @sdkwork/app-topology.
+Topology-aware Discovery dev entry. Loads etc/topology profile env via @sdkwork/app-topology.
 
 Options:
   --deployment-profile <standalone|cloud>           Default: standalone
-  --service-layout <unified-process>                Default: unified-process
   --dry-run                                         Print plan without executing
   --help, -h
 `);
@@ -116,7 +114,7 @@ async function main() {
   }
 
   const profileId =
-    resolveDevProfileId(settings.deploymentProfile, settings.serviceLayout) || DEFAULT_DEV_PROFILE_ID;
+    resolveDevProfileId(settings.deploymentProfile) || DEFAULT_DEV_PROFILE_ID;
   const profileEnv = loadProfile(profileId);
   ensurePostgresDevEnvFile(REPO_ROOT, { stdout: console });
   const postgresEnv = loadEnvFile('.env.postgres', REPO_ROOT);

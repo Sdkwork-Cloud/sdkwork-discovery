@@ -24,7 +24,7 @@ Deploy the Discovery gRPC control plane for production registry, config, and wat
 
 1. Copy `etc/discovery.production.example.toml` to a host-local path (for example `/etc/sdkwork/discovery/production.toml`).
 2. Mount secret files at the paths referenced in the config.
-3. Load topology env from `configs/topology/standalone.unified-process.production.env` or `configs/topology/cloud.unified-process.production.env` as appropriate.
+3. Load topology env from `etc/topology/standalone.production.env` or `etc/topology/cloud.production.env` as appropriate.
 
 Required process env:
 

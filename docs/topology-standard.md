@@ -4,11 +4,11 @@ Archetype: `application-http-gateway` (`specs/topology.spec.json`, `schemaVersio
 
 Platform standard: `../sdkwork-specs/APP_RUNTIME_TOPOLOGY_ADOPTION.md`
 
-Discovery is a unified-process gRPC control plane. Clients connect to **application.public-ingress** for registry and config RPC. Operator/admin RPC terminates on **operations.control-ingress**.
+Discovery is a gRPC control plane. Clients connect to **application.public-ingress** for registry and config RPC. Operator/admin RPC terminates on **operations.control-ingress**.
 
 ## Default dev profile
 
-`standalone.unified-process.development` — start the service host with:
+`standalone.development` — start the service host with:
 
 ```bash
 pnpm dev
@@ -27,7 +27,7 @@ pnpm dev:cloud
 | `application.public-ingress` | application | `sdkwork-discovery-service-host` (registry/config gRPC) |
 | `operations.control-ingress` | operations | `sdkwork-discovery-service-host` (admin gRPC) |
 
-Profile env files under `configs/topology/` declare `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_*` and `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_*` bind and gRPC URL keys for each deployment profile.
+Profile env files under `etc/topology/` declare `SDKWORK_DISCOVERY_APPLICATION_PUBLIC_*` and `SDKWORK_DISCOVERY_OPERATIONS_CONTROL_*` bind and gRPC URL keys for each deployment profile.
 
 Loader: `scripts/lib/discovery-topology.mjs` → `@sdkwork/app-topology`.
 

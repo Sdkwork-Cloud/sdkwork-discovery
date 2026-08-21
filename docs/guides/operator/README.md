@@ -13,7 +13,7 @@ Deployment, monitoring, and incident response for SDKWork Discovery.
 
 - Development: `etc/discovery.example.toml`
 - Production: `etc/discovery.production.example.toml`
-- Topology env: `configs/topology/*.production.env`
+- Topology env: `etc/topology/*.production.env`
 
 ## Verification
 

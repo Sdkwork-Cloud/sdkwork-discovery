@@ -350,12 +350,8 @@ fn env_overlay_maps_topology_surface_bind_keys() {
     let toml = minimal_config("dev", Some("development"));
     let env = BTreeMap::from([
         (
-            "SDKWORK_DISCOVERY_SERVICE_LAYOUT".to_string(),
-            "unified-process".to_string(),
-        ),
-        (
             "SDKWORK_DISCOVERY_PROFILE_ID".to_string(),
-            "self-hosted.unified-process.development".to_string(),
+            "standalone.development".to_string(),
         ),
         (
             "SDKWORK_DISCOVERY_APPLICATION_PUBLIC_INGRESS_BIND".to_string(),

@@ -4,7 +4,7 @@ Holds the SDKWork application deploy manifest (`deploy.yaml`) for `sdkwork-disco
 
 ## Purpose
 
-Single deployment contract consumed by `deployctl` and SDKWork Deploy Server. Resolves install layout, public domains, client package artifacts, and overrides for the `cloud.unified-process.production` topology profile.
+Single deployment contract consumed by `deployctl` and SDKWork Deploy Server. Resolves install layout, public domains, client package artifacts, and overrides for the `cloud.production` topology profile.
 
 ## Owner
 

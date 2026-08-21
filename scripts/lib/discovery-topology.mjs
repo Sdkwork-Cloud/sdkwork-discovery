@@ -21,10 +21,9 @@ const runtime = createTopologyRuntime(spec, REPO_ROOT);
 export const DEFAULT_DEV_PROFILE_ID = runtime.defaults.developmentProfileId;
 export const DEFAULT_PRODUCTION_PROFILE_ID = runtime.defaults.productionProfileId;
 
-export function resolveDevProfileId(deploymentProfile, serviceLayout = 'unified-process') {
+export function resolveDevProfileId(deploymentProfile) {
   runtime.assertDeploymentProfile(deploymentProfile);
-  runtime.assertServiceLayout(serviceLayout);
-  return buildProfileId(deploymentProfile, serviceLayout, 'development');
+  return buildProfileId(deploymentProfile, 'development');
 }
 
 export function splitHostPort(bind) {
@@ -74,7 +73,6 @@ export const applyProfileEnv = runtime.applyProfileEnv;
 export const mergeRuntimeEnv = runtime.mergeRuntimeEnv;
 export const loadEnvFile = runtime.loadEnvFile;
 export const assertDeploymentProfile = runtime.assertDeploymentProfile;
-export const assertServiceLayout = runtime.assertServiceLayout;
 export const resolveSurfaceBind = runtime.resolveSurfaceBind.bind(runtime);
 export const listOrchestrationProcesses = runtime.listOrchestrationProcesses;
 export const listHealthSurfaces = runtime.listHealthSurfaces;

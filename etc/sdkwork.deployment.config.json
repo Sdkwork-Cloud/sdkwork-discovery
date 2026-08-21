@@ -15,16 +15,29 @@
   },
   "profiles": {
     "cloud.development": {
-      "config": "configs\\topology\\cloud.development.env"
+      "config": "topology/cloud.development.env"
     },
     "cloud.production": {
-      "config": "configs\\topology\\cloud.production.env"
+      "config": "topology/cloud.production.env"
     },
     "standalone.development": {
-      "config": "configs\\topology\\standalone.development.env"
+      "config": "topology/standalone.development.env"
     },
     "standalone.production": {
-      "config": "configs\\topology\\standalone.production.env"
+      "config": "topology/standalone.production.env"
+    },
+    "standalone.test": {
+      "config": "topology/standalone.test.env"
+    },
+    "standalone.staging": {
+      "config": "topology/standalone.staging.env"
+    },
+    "cloud.test": {
+      "config": "topology/cloud.test.env"
+    },
+    "cloud.staging": {
+      "config": "topology/cloud.staging.env"
     }
-  }
+  },
+  "topology": "../specs/topology.spec.json"
 }

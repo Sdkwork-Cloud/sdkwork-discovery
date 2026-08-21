@@ -23,7 +23,7 @@ pnpm run dev
 
 On Windows, prefer `pnpm.cmd` if PowerShell blocks `pnpm.ps1`.
 
-Topology-aware dev loads profiles from `configs/topology/` via `@sdkwork/app-topology`. See [topology standard](../../topology-standard.md).
+Topology-aware dev loads profiles from `etc/topology/` via `@sdkwork/app-topology`. See [topology standard](../../topology-standard.md).
 
 ## Run The Service Host
 

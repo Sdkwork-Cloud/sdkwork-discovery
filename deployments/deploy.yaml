@@ -1,9 +1,49 @@
-version: 1
-profile: cloud.unified-process.production
+version: 2
+defaultProfile: cloud.production
 
-install:
-  layout: binary-package
+profiles:
+  cloud.production:
+    deployment:
+      deploymentProfile: cloud
+      environment: production
+      deliveryKind: container-image
+      deploymentDriver: kubernetes
+      managementModel: sdkwork-managed
+      tenancyModel: single-tenant
+      isolationModel: dedicated
+      networkExposure: public
+      rolloutStrategy: rolling
+      availabilityMode: high-availability
+    install:
+      layout: binary-package
+    expose: []
+    packages: []
+    overrides:
+      topology:
+        spec: specs/topology.spec.json
+        profile: cloud.production
+        env: etc/topology/cloud.production.env
+      kubernetes:
+        reference: deployments/kubernetes/
 
-expose: []
-packages: []
-overrides: {}
+  standalone.production:
+    deployment:
+      deploymentProfile: standalone
+      environment: production
+      deliveryKind: host-package
+      deploymentDriver: nginx
+      managementModel: customer-managed
+      tenancyModel: single-tenant
+      isolationModel: dedicated
+      networkExposure: private
+      rolloutStrategy: recreate
+      availabilityMode: single-instance
+    install:
+      layout: binary-package
+    expose: []
+    packages: []
+    overrides:
+      topology:
+        spec: specs/topology.spec.json
+        profile: standalone.production
+        env: etc/topology/standalone.production.env
