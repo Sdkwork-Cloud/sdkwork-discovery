@@ -1,6 +1,5 @@
 version: 2
 defaultProfile: cloud.production
-
 profiles:
   cloud.production:
     deployment:
@@ -16,7 +15,6 @@ profiles:
       availabilityMode: high-availability
     install:
       layout: binary-package
-    expose: []
     packages: []
     overrides:
       topology:
@@ -25,7 +23,6 @@ profiles:
         env: etc/topology/cloud.production.env
       kubernetes:
         reference: deployments/kubernetes/
-
   standalone.production:
     deployment:
       deploymentProfile: standalone
@@ -40,7 +37,6 @@ profiles:
       availabilityMode: single-instance
     install:
       layout: binary-package
-    expose: []
     packages: []
     overrides:
       topology:

@@ -2,5 +2,5 @@ specVersion = 1
 kind = "sdkwork.webserver.server"
 id = "discovery"
 enabled = false
-description = "no public web surface declared in topology (missing defaults.gatewayBind)"
+description = "sdkwork-discovery webserver placeholder (no cloudPublicHosts in topology)"
 
