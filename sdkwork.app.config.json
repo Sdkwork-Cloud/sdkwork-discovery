@@ -70,22 +70,5 @@
       "managedBy": "sdkwork-discovery"
     }
   },
-  "environments": {
-    "development": {
-      "accessUrl": "grpc://127.0.0.1:19090",
-      "deployUrl": "grpc://127.0.0.1:19090",
-      "deployEnv": "dev"
-    },
-    "test": {
-      "accessUrl": "grpc://127.0.0.1:19090",
-      "deployUrl": "grpc://127.0.0.1:19090",
-      "deployEnv": "test"
-    },
-    "production": {
-      "accessUrl": "https://discovery.sdkwork.com",
-      "deployUrl": "https://discovery.sdkwork.com",
-      "deployEnv": "production"
-    }
-  },
   "sdkDependencies": []
 }
