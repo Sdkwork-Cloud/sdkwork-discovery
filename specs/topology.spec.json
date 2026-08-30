@@ -50,7 +50,9 @@
   "envKeys": {
     "environment": "SDKWORK_DISCOVERY_ENVIRONMENT",
     "profileId": "SDKWORK_DISCOVERY_PROFILE_ID",
-    "deploymentProfile": "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE"
+    "deploymentProfile": "SDKWORK_DISCOVERY_DEPLOYMENT_PROFILE",
+    "apiGatewayBaseUrl": "SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_HTTP_URL",
+    "clientApiGatewayBaseUrl": "VITE_SDKWORK_DISCOVERY_PLATFORM_API_GATEWAY_HTTP_URL"
   },
   "surfaces": {
     "application.public-ingress": {
@@ -194,7 +196,8 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
-        ]
+        ],
+        "browserDeliveries": []
       },
       "cloud.development": {
         "processes": [],
@@ -215,7 +218,8 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
-        ]
+        ],
+        "browserDeliveries": []
       },
       "cloud.production": {
         "processes": [
@@ -243,7 +247,8 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
-        ]
+        ],
+        "browserDeliveries": []
       },
       "standalone.staging": {
         "processes": [
@@ -257,7 +262,8 @@
         ],
         "healthSurfaces": [
           "application.public-ingress"
-        ]
+        ],
+        "browserDeliveries": []
       },
       "cloud.test": {
         "processes": [],
@@ -282,7 +288,8 @@
       },
       "standalone.demo": {
         "processes": [],
-        "healthSurfaces": []
+        "healthSurfaces": [],
+        "browserDeliveries": []
       },
       "cloud.demo": {
         "processes": [],
