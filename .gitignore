@@ -53,3 +53,6 @@ Thumbs.db
 Thumbs.db
 # Runtime-generated environment configuration
 **/public/runtime-env.json
+
+# Local artifacts and build output (do not commit)
+sdks/**/package-lock.json
