@@ -56,3 +56,6 @@ Thumbs.db
 
 # Local artifacts and build output (do not commit)
 sdks/**/package-lock.json
+
+# Build artifacts
+/bin/
